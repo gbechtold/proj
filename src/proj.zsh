@@ -4,7 +4,7 @@
 # ╚══════════════════════════════════════════════════════════════╝
 
 PROJ_DIR="${PROJ_DATA_DIR:-$HOME/.config/proj/projects}"
-PROJ_ROOT="$(cd "$(dirname "${(%):-%x}")" && pwd)"
+PROJ_ROOT="${${(%):-%x}:A:h}"
 PROJ_PY="$PROJ_ROOT/proj_helper.py"
 
 [[ -d "$PROJ_DIR" ]] || mkdir -p "$PROJ_DIR"

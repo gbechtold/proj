@@ -22,9 +22,10 @@ A lightweight, colorful terminal tool that turns your shell into a project comma
 ```bash
 git clone https://github.com/gbechtold/proj.git
 cd proj
-bash install.sh
-source ~/.zshrc
+bash install.sh && source src/proj.zsh
 ```
+
+That's it — `proj` is ready in your current shell. Future terminals load it automatically via `.zshrc`.
 
 **Requirements:** macOS, zsh, python3, iTerm2 (optional, for tab colors)
 

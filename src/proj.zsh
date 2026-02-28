@@ -27,6 +27,8 @@ proj() {
     # Project management
     use|u)          shift; _proj_use "$@" ;;
     info|i)         _proj_info ;;
+    path|p)         shift; _proj_path "$@" ;;
+    cd)             _proj_cd ;;
     list|ls|l)      _proj_list ;;
     clear|x)        _proj_clear ;;
     rm)             shift; _proj_rm "$@" ;;
@@ -73,6 +75,8 @@ _proj_help() {
   echo "  ${_PC_BOLD}Project${_PC_RESET}"
   echo "  ${_PC_DIM}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PC_RESET}"
   echo "  ${_PC_CYAN}info${_PC_RESET}  ${_PC_DIM}i${_PC_RESET}                      Project details"
+  echo "  ${_PC_CYAN}path${_PC_RESET}  ${_PC_DIM}p${_PC_RESET}  ${_PC_DIM}[dir]${_PC_RESET}              Set/show local directory"
+  echo "  ${_PC_CYAN}cd${_PC_RESET}                            Jump to project directory"
   echo "  ${_PC_CYAN}task${_PC_RESET}  ${_PC_DIM}t${_PC_RESET}  ${_PC_DIM}<text>${_PC_RESET}             Set current task"
   echo "  ${_PC_CYAN}note${_PC_RESET}  ${_PC_DIM}n${_PC_RESET}  ${_PC_DIM}<text>${_PC_RESET}             Add note"
   echo "  ${_PC_CYAN}color${_PC_RESET} ${_PC_DIM}c${_PC_RESET}  ${_PC_DIM}<color>${_PC_RESET}            Change tab color"
@@ -81,11 +85,14 @@ _proj_help() {
   echo "  ${_PC_CYAN}rm${_PC_RESET}    ${_PC_DIM}<name>${_PC_RESET}                 Delete project"
   echo ""
 
-  echo "  ${_PC_BOLD}Links${_PC_RESET}"
-  echo "  ${_PC_DIM}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PC_RESET}"
+  echo "  ${_PC_BOLD}Links & Deploy${_PC_RESET}"
+  echo "  ${_PC_DIM}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PC_RESET}"
   echo "  ${_PC_CYAN}open${_PC_RESET}  ${_PC_DIM}o${_PC_RESET}  ${_PC_DIM}[#|type]${_PC_RESET}           Open link menu / by #"
   echo "  ${_PC_CYAN}link add${_PC_RESET}                      Add a link"
   echo "  ${_PC_CYAN}link rm${_PC_RESET} ${_PC_DIM}<type>${_PC_RESET}               Remove a link"
+  echo "  ${_PC_DIM}  Types: live staging dev clickup moco-kunde moco-auftrag${_PC_RESET}"
+  echo "  ${_PC_DIM}         gmail github server ssh cloudways${_PC_RESET}"
+  echo "  ${_PC_DIM}         facebook-ads google-ads analytics 1password${_PC_RESET}"
   echo ""
 
   echo "  ${_PC_BOLD}Time${_PC_RESET}"
@@ -111,63 +118,82 @@ _proj_help() {
 _proj_create_demos() {
   _proj_ui_header "Loading Demo Projects" "$_PC_LIME"
 
-  # Cosmic Carrot Studios — web agency
+  # Cosmic Carrot Studios — web agency with full deploy setup
   local f=$(_proj_file "Cosmic Carrot")
   _proj_py "$f" init "Cosmic Carrot" "orange"
   _proj_py "$f" set task "Landing page redesign"
+  _proj_py "$f" set path "~/Projects/CosmicCarrot"
   _proj_py "$f" append notes '"Check responsive breakpoints"'
   _proj_py "$f" append notes '"Client wants parallax hero section"'
   _proj_py "$f" set-nested links live "https://cosmiccarrot.example.com"
   _proj_py "$f" set-nested links staging "https://staging.cosmiccarrot.example.com"
+  _proj_py "$f" set-nested links cloudways "https://platform.cloudways.com/server/12345/access_detail"
+  _proj_py "$f" set-nested links ssh "ssh user@cosmiccarrot.example.com"
   _proj_py "$f" set-nested links clickup "https://app.clickup.com/demo/cosmic-carrot"
+  _proj_py "$f" set-nested links moco-kunde "https://mocoapp.example.com/contacts/33"
+  _proj_py "$f" set-nested links moco-auftrag "https://mocoapp.example.com/projects/55"
   _proj_py "$f" set-nested links gmail "Cosmic Carrot"
   _proj_py "$f" set-nested links github "https://github.com/demo/cosmic-carrot"
-  echo "  ${_PC_ORANGE}${_PU_BULLET}${_PC_RESET} Cosmic Carrot ${_PC_DIM}— web agency project${_PC_RESET}"
+  _proj_py "$f" set-nested links 1password "https://my.1password.com/vaults/abc/items/cosmic-carrot"
+  echo "  ${_PC_ORANGE}${_PU_BULLET}${_PC_RESET} Cosmic Carrot ${_PC_DIM}— web agency + deploy${_PC_RESET}"
 
-  # Turbo Turtle Racing — e-commerce
+  # Turbo Turtle Racing — e-commerce with marketing
   f=$(_proj_file "Turbo Turtle")
   _proj_py "$f" init "Turbo Turtle" "green"
   _proj_py "$f" set task "Checkout flow optimization"
+  _proj_py "$f" set path "~/Projects/TurboTurtle"
   _proj_py "$f" append notes '"A/B test: one-page vs multi-step checkout"'
   _proj_py "$f" set-nested links live "https://turboturtleracing.example.com"
   _proj_py "$f" set-nested links staging "https://staging.turboturtleracing.example.com"
+  _proj_py "$f" set-nested links server "https://console.aws.example.com/ec2/i-turboturtle"
+  _proj_py "$f" set-nested links facebook-ads "https://business.facebook.com/adsmanager/manage/campaigns?act=12345"
+  _proj_py "$f" set-nested links google-ads "https://ads.google.com/aw/campaigns?ocid=67890"
+  _proj_py "$f" set-nested links analytics "https://analytics.google.com/analytics/web/#/p99999/reports"
   _proj_py "$f" set-nested links moco-kunde "https://mocoapp.example.com/contacts/42"
   _proj_py "$f" set-nested links moco-auftrag "https://mocoapp.example.com/projects/101"
-  echo "  ${_PC_GREEN}${_PU_BULLET}${_PC_RESET} Turbo Turtle ${_PC_DIM}— e-commerce project${_PC_RESET}"
+  echo "  ${_PC_GREEN}${_PU_BULLET}${_PC_RESET} Turbo Turtle ${_PC_DIM}— e-commerce + marketing${_PC_RESET}"
 
-  # Pixel Penguin Labs — SaaS
+  # Pixel Penguin Labs — SaaS with AI
   f=$(_proj_file "Pixel Penguin")
   _proj_py "$f" init "Pixel Penguin" "blue"
   _proj_py "$f" set task "API rate limiting"
+  _proj_py "$f" set path "~/Projects/PixelPenguin"
   _proj_py "$f" append notes '"Redis-based token bucket"'
   _proj_py "$f" append notes '"Dashboard needs usage graphs"'
   _proj_py "$f" set-nested links live "https://pixelpenguin.example.com"
   _proj_py "$f" set-nested links dev "http://localhost:3000"
   _proj_py "$f" set-nested links github "https://github.com/demo/pixel-penguin"
   _proj_py "$f" set-nested links claude "~/Projects/PixelPenguin"
-  echo "  ${_PC_BLUE}${_PU_BULLET}${_PC_RESET} Pixel Penguin ${_PC_DIM}— SaaS project${_PC_RESET}"
+  _proj_py "$f" set-nested links ssh "ssh deploy@pixelpenguin.example.com"
+  echo "  ${_PC_BLUE}${_PU_BULLET}${_PC_RESET} Pixel Penguin ${_PC_DIM}— SaaS + AI${_PC_RESET}"
 
-  # Neon Narwhal Design — design agency
+  # Neon Narwhal Design — design with marketing
   f=$(_proj_file "Neon Narwhal")
   _proj_py "$f" init "Neon Narwhal" "purple"
   _proj_py "$f" set task "Brand guidelines PDF"
+  _proj_py "$f" set path "~/Projects/NeonNarwhal"
   _proj_py "$f" append notes '"Needs dark mode variants"'
   _proj_py "$f" set-nested links clickup "https://app.clickup.com/demo/neon-narwhal"
   _proj_py "$f" set-nested links gmail "Neon Narwhal Design"
-  echo "  ${_PC_PURPLE}${_PU_BULLET}${_PC_RESET} Neon Narwhal ${_PC_DIM}— design project${_PC_RESET}"
+  _proj_py "$f" set-nested links facebook-ads "https://business.facebook.com/adsmanager/manage/campaigns?act=55555"
+  echo "  ${_PC_PURPLE}${_PU_BULLET}${_PC_RESET} Neon Narwhal ${_PC_DIM}— design + marketing${_PC_RESET}"
 
-  # Thunderbolt Taco — food delivery app
+  # Thunderbolt Taco — food delivery with full deploy
   f=$(_proj_file "Thunderbolt Taco")
   _proj_py "$f" init "Thunderbolt Taco" "red"
   _proj_py "$f" set task "Push notifications"
+  _proj_py "$f" set path "~/Projects/ThunderboltTaco"
   _proj_py "$f" append notes '"Firebase Cloud Messaging setup"'
   _proj_py "$f" append notes '"iOS permission flow needs UX review"'
   _proj_py "$f" set-nested links live "https://thunderbolttaco.example.com"
   _proj_py "$f" set-nested links staging "https://staging.thunderbolttaco.example.com"
   _proj_py "$f" set-nested links dev "http://localhost:8080"
+  _proj_py "$f" set-nested links cloudways "https://platform.cloudways.com/server/67890/access_detail"
+  _proj_py "$f" set-nested links ssh "ssh app@thunderbolttaco.example.com"
   _proj_py "$f" set-nested links moco-kunde "https://mocoapp.example.com/contacts/77"
   _proj_py "$f" set-nested links codex "~/Projects/ThunderboltTaco"
-  echo "  ${_PC_RED}${_PU_BULLET}${_PC_RESET} Thunderbolt Taco ${_PC_DIM}— food delivery app${_PC_RESET}"
+  _proj_py "$f" set-nested links 1password "https://my.1password.com/vaults/abc/items/thunderbolt-taco"
+  echo "  ${_PC_RED}${_PU_BULLET}${_PC_RESET} Thunderbolt Taco ${_PC_DIM}— delivery + deploy${_PC_RESET}"
 
   echo ""
   _proj_ui_success "5 demo projects created"
@@ -220,6 +246,8 @@ _proj_completion() {
     'menu:Interactive project menu'
     'use:Activate project'
     'info:Project details'
+    'path:Set/show project directory'
+    'cd:Jump to project directory'
     'task:Set current task'
     'note:Add note'
     'notes:Show notes'

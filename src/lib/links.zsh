@@ -14,6 +14,13 @@ _PROJ_LINK_TYPES=(
   "github:GitHub"
   "claude:Claude Code Path"
   "codex:Codex Path"
+  "server:Server Login"
+  "ssh:SSH Connection"
+  "cloudways:Cloudways Panel"
+  "facebook-ads:Facebook Ads"
+  "google-ads:Google Ads"
+  "analytics:Analytics"
+  "1password:1Password Vault"
   "custom:Custom Link"
 )
 
@@ -155,13 +162,16 @@ _proj_link_add() {
   fi
 
   if [[ -z "$link_url" ]]; then
-    if [[ "$link_type" == "gmail" ]]; then
-      read "link_url?  ${_PC_CYAN}Search term:${_PC_RESET} "
-    elif [[ "$link_type" == "claude" || "$link_type" == "codex" ]]; then
-      read "link_url?  ${_PC_CYAN}Project path:${_PC_RESET} "
-    else
-      read "link_url?  ${_PC_CYAN}URL:${_PC_RESET} "
-    fi
+    case "$link_type" in
+      gmail)
+        read "link_url?  ${_PC_CYAN}Search term:${_PC_RESET} " ;;
+      claude|codex)
+        read "link_url?  ${_PC_CYAN}Project path:${_PC_RESET} " ;;
+      ssh)
+        read "link_url?  ${_PC_CYAN}SSH command (e.g. ssh user@host):${_PC_RESET} " ;;
+      *)
+        read "link_url?  ${_PC_CYAN}URL:${_PC_RESET} " ;;
+    esac
   fi
 
   [[ -z "$link_url" ]] && _proj_ui_warn "Cancelled" && return
@@ -198,6 +208,15 @@ _proj_open_url() {
   if [[ "$type" == "claude" || "$type" == "codex" ]]; then
     _proj_ui_info "Path: ${_PC_BOLD}$url${_PC_RESET}"
     _proj_ui_hint "proj $type ${_PU_ARROW} start AI session"
+    return
+  fi
+
+  # SSH — copy to clipboard + show
+  if [[ "$type" == "ssh" ]]; then
+    echo "$url" | pbcopy
+    _proj_ui_info "SSH: ${_PC_BOLD}$url${_PC_RESET}"
+    _proj_ui_success "Copied to clipboard"
+    _proj_ui_hint "Paste in terminal to connect"
     return
   fi
 

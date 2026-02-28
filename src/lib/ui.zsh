@@ -156,6 +156,13 @@ _proj_ui_link_icon() {
     claude)       echo "🧠" ;;
     codex)        echo "⚡" ;;
     github)       echo "🐙" ;;
+    server)       echo "🖥" ;;
+    ssh)          echo "🔑" ;;
+    cloudways)    echo "☁️" ;;
+    facebook-ads) echo "📣" ;;
+    google-ads)   echo "📢" ;;
+    analytics)    echo "📊" ;;
+    1password)    echo "🔐" ;;
     *)            echo "🔗" ;;
   esac
 }
@@ -173,6 +180,13 @@ _proj_ui_link_label() {
     claude)       echo "Claude Code" ;;
     codex)        echo "Codex" ;;
     github)       echo "GitHub" ;;
+    server)       echo "Server" ;;
+    ssh)          echo "SSH" ;;
+    cloudways)    echo "Cloudways" ;;
+    facebook-ads) echo "Facebook Ads" ;;
+    google-ads)   echo "Google Ads" ;;
+    analytics)    echo "Analytics" ;;
+    1password)    echo "1Password" ;;
     *)            echo "$1" ;;
   esac
 }

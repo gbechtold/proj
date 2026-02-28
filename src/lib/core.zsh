@@ -118,8 +118,69 @@ _proj_use() {
 
   _PROJ_CURRENT="$name"
   _proj_refresh
-  _proj_ui_info "Active: ${_PC_BOLD}$name${_PC_RESET}"
-  _proj_ui_hint "proj open ${_PU_ARROW} links  ${_PC_DIM}|${_PC_RESET}${_PC_DIM}  proj time start ${_PU_ARROW} timer  ${_PC_DIM}|${_PC_RESET}${_PC_DIM}  proj info ${_PU_ARROW} details"
+
+  # Show path if set
+  local proj_path=$(_proj_json_get "$file" path)
+  if [[ -n "$proj_path" ]]; then
+    _proj_ui_info "Active: ${_PC_BOLD}$name${_PC_RESET} ${_PC_DIM}${_PU_DOT} $proj_path${_PC_RESET}"
+  else
+    _proj_ui_info "Active: ${_PC_BOLD}$name${_PC_RESET}"
+  fi
+  _proj_ui_hint "proj cd ${_PU_ARROW} dir  ${_PC_DIM}|${_PC_RESET}${_PC_DIM}  proj open ${_PU_ARROW} links  ${_PC_DIM}|${_PC_RESET}${_PC_DIM}  proj time start ${_PU_ARROW} timer"
+}
+
+# ─── Project Path & cd ──────────────────────────────────────
+
+_proj_path() {
+  [[ -z "$_PROJ_CURRENT" ]] && _proj_ui_error "No active project." && return 1
+  local file=$(_proj_file "$_PROJ_CURRENT")
+
+  local new_path="$1"
+  if [[ -z "$new_path" ]]; then
+    # Show current path
+    local current=$(_proj_json_get "$file" path)
+    if [[ -n "$current" ]]; then
+      _proj_ui_info "Path: ${_PC_BOLD}$current${_PC_RESET}"
+    else
+      _proj_ui_warn "No path set"
+      _proj_ui_hint "proj path <dir> ${_PU_ARROW} set project directory"
+    fi
+    return
+  fi
+
+  # Expand ~ and resolve
+  new_path="${new_path/#\~/$HOME}"
+
+  if [[ ! -d "$new_path" ]]; then
+    _proj_ui_error "Directory not found: $new_path"
+    return 1
+  fi
+
+  _proj_json_set "$file" path "$new_path"
+  _proj_ui_success "Path: ${_PC_BOLD}$new_path${_PC_RESET}"
+  _proj_ui_hint "proj cd ${_PU_ARROW} jump there"
+}
+
+_proj_cd() {
+  [[ -z "$_PROJ_CURRENT" ]] && _proj_ui_error "No active project." && return 1
+  local file=$(_proj_file "$_PROJ_CURRENT")
+  local proj_path=$(_proj_json_get "$file" path)
+
+  if [[ -z "$proj_path" ]]; then
+    _proj_ui_warn "No path set for $_PROJ_CURRENT"
+    _proj_ui_hint "proj path <dir> ${_PU_ARROW} set project directory"
+    return 1
+  fi
+
+  proj_path="${proj_path/#\~/$HOME}"
+
+  if [[ ! -d "$proj_path" ]]; then
+    _proj_ui_error "Directory not found: $proj_path"
+    return 1
+  fi
+
+  cd "$proj_path"
+  _proj_ui_info "📂 ${_PC_BOLD}$proj_path${_PC_RESET}"
 }
 
 # ─── Project Task ────────────────────────────────────────────
@@ -209,7 +270,10 @@ _proj_info() {
 
   _proj_ui_header "$name" "$_PC_CYAN"
 
+  local proj_path=$(_proj_json_get "$file" path)
+
   echo "  ${_PC_DIM}Color:${_PC_RESET}    $color"
+  [[ -n "$proj_path" ]] && echo "  ${_PC_DIM}Path:${_PC_RESET}     ${_PC_BOLD}$proj_path${_PC_RESET}"
   echo "  ${_PC_DIM}Task:${_PC_RESET}     ${task:-—}"
   echo "  ${_PC_DIM}Notes:${_PC_RESET}    $note_count"
   echo "  ${_PC_DIM}Links:${_PC_RESET}    $link_count"

@@ -1,0 +1,17 @@
+# Project data (user-specific)
+projects/
+*.json.bak
+
+# OS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+
+# IDE
+.vscode/
+.idea/
+
+# Context files
+.proj-context.json

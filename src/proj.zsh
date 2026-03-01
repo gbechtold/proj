@@ -51,6 +51,12 @@ proj() {
     claude|cl)      shift; _proj_ai "claude" "$@" ;;
     codex|cx)       shift; _proj_ai "codex" "$@" ;;
 
+    # Stars integration (workflow engine)
+    sessions|ss)    _proj_sessions ;;
+    sync)           shift; _proj_sync "$@" ;;
+    deploy)         shift; _proj_deploy "$@" ;;
+    report)         shift; _proj_report "$@" ;;
+
     # Utilities
     demo)           _proj_create_demos ;;
     migrate)        _proj_migrate_conf ;;
@@ -107,6 +113,14 @@ _proj_help() {
   echo "  ${_PC_DIM}${_PU_H}${_PU_H}${_PC_RESET}"
   echo "  ${_PC_CYAN}claude${_PC_RESET} ${_PC_DIM}cl${_PC_RESET}                    Start Claude Code"
   echo "  ${_PC_CYAN}codex${_PC_RESET}  ${_PC_DIM}cx${_PC_RESET}                    Start Codex"
+  echo "  ${_PC_CYAN}sessions${_PC_RESET} ${_PC_DIM}ss${_PC_RESET}                  Claude sessions (via stars)"
+  echo ""
+
+  echo "  ${_PC_BOLD}Workflow (stars)${_PC_RESET}"
+  echo "  ${_PC_DIM}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PC_RESET}"
+  echo "  ${_PC_CYAN}sync${_PC_RESET}    ${_PC_DIM}[moco|clickup]${_PC_RESET}        Sync to external systems"
+  echo "  ${_PC_CYAN}deploy${_PC_RESET}                          Deploy via pipeline"
+  echo "  ${_PC_CYAN}report${_PC_RESET}  ${_PC_DIM}[--month|--client]${_PC_RESET}    Generate reports"
   echo ""
 
   echo "  ${_PC_DIM}Colors: ${_PC_GREEN}green${_PC_RESET} ${_PC_BLUE}blue${_PC_RESET} ${_PC_CYAN}cyan${_PC_RESET} ${_PC_RED}red${_PC_RESET} ${_PC_ORANGE}orange${_PC_RESET} ${_PC_YELLOW}yellow${_PC_RESET} ${_PC_PURPLE}purple${_PC_RESET} ${_PC_PINK}pink${_PC_RESET} ${_PC_GRAY}gray${_PC_RESET}"
@@ -261,6 +275,10 @@ _proj_completion() {
     'rm:Delete project'
     'claude:Start Claude Code'
     'codex:Start Codex'
+    'sessions:Claude sessions (via stars)'
+    'sync:Sync to Moco/ClickUp (via stars)'
+    'deploy:Deploy via pipeline (via stars)'
+    'report:Generate reports (via stars)'
     'demo:Create demo projects'
     'migrate:Migrate .conf to .json'
     'help:Show help'

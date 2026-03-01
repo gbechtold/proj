@@ -149,7 +149,13 @@ Projects are stored as JSON in `~/.config/proj/projects/`:
 ## 🗺 Roadmap
 
 - [x] **Phase 1:** Local project hub with browser links, time tracking, AI launch
-- [ ] **Phase 2:** API integrations (Moco time booking, ClickUp ticket creation) — separate project
+- [x] **Phase 2:** Stars Hub bridge (sessions, sync, deploy, report shortcuts)
+- [ ] **Phase 3:** Enhanced proj info (show Moco hours, deploy status from Stars)
+
+## Related Projects
+
+- [stars-hub](https://github.com/gbechtold/stars-hub) — Workflow automation engine (Node.js)
+- [stars-ops](https://github.com/gbechtold/stars-ops) — Server infrastructure (Hetzner)
 
 ## 🤝 Migration
 

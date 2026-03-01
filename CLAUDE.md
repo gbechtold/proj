@@ -16,10 +16,17 @@ Terminal-based project hub that consolidates links, time tracking, and AI sessio
 - iTerm2 escape codes for tab colors/titles/badges
 - Contextual shortcut hints after actions via `_proj_ui_hint`
 
-## Phase 1 (current): Local hub with browser links
-## Phase 2 (planned): API integrations (Moco, ClickUp) — separate project
+## Status
+- Phase 1: Local hub (links, time, AI) — fertig
+- Phase 2: Stars bridge (sessions, sync, deploy, report) — fertig
+
+## Repos
+- **Dieses Repo:** github.com/gbechtold/proj (private)
+- **Engine:** github.com/gbechtold/stars-hub (private)
+- **Infra:** github.com/gbechtold/stars-ops (private)
 
 ## Commands
 proj, proj use, proj info, proj open, proj link add/rm,
 proj time start/stop/log, proj claude, proj codex,
-proj task, proj note, proj color, proj list, proj clear, proj rm
+proj task, proj note, proj color, proj list, proj clear, proj rm,
+proj sessions, proj sync, proj deploy, proj report

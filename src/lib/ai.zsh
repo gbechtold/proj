@@ -31,7 +31,7 @@ _proj_ai_claude() {
     [[ -z "$proj_path" ]] && return
 
     proj_path=$(_proj_expand_path "$proj_path")
-    _proj_py "$file" set-nested links claude "$proj_path"
+    _proj_py "$file" set-nested links claude "$proj_path" >/dev/null
     _proj_ui_success "Path saved: $proj_path"
   fi
 
@@ -39,6 +39,7 @@ _proj_ai_claude() {
 
   if [[ ! -d "$proj_path" ]]; then
     _proj_ui_error "Path not found: $proj_path"
+    _proj_ui_hint "proj link add claude <path> ${_PU_ARROW} update path"
     return 1
   fi
 
@@ -107,7 +108,7 @@ _proj_ai_codex() {
     [[ -z "$proj_path" ]] && return
 
     proj_path=$(_proj_expand_path "$proj_path")
-    _proj_py "$file" set-nested links codex "$proj_path"
+    _proj_py "$file" set-nested links codex "$proj_path" >/dev/null
     _proj_ui_success "Path saved: $proj_path"
   fi
 
@@ -115,6 +116,7 @@ _proj_ai_codex() {
 
   if [[ ! -d "$proj_path" ]]; then
     _proj_ui_error "Path not found: $proj_path"
+    _proj_ui_hint "proj link add codex <path> ${_PU_ARROW} update path"
     return 1
   fi
 

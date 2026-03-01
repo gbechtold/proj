@@ -134,10 +134,26 @@ def main():
         data["updated"] = now_iso()
         save(filepath, data)
 
-    # --- count <key> ---
-    elif op == "count":
-        val = data.get(args[0], [])
-        print(len(val) if isinstance(val, (list, dict)) else 0)
+    # --- list-batch <dir> ---
+    # Returns name|color|task|timer_status for all projects in dir
+    elif op == "list-batch":
+        import glob
+        proj_dir = args[0] if args else os.path.dirname(filepath)
+        for pf in sorted(glob.glob(os.path.join(proj_dir, "*.json")), key=os.path.getmtime, reverse=True):
+            try:
+                pd = json.loads(open(pf).read())
+            except Exception:
+                continue
+            pname = pd.get("name", "")
+            pcolor = pd.get("color", "")
+            ptask = pd.get("task", "")
+            archived = pd.get("archived", False)
+            timer = ""
+            for entry in reversed(pd.get("time", [])):
+                if isinstance(entry, dict) and entry.get("start") and not entry.get("stop"):
+                    timer = "running"
+                    break
+            print(f"{pf}|{pname}|{pcolor}|{ptask}|{timer}|{archived}")
 
     # --- info-batch ---
     elif op == "info-batch":
@@ -183,6 +199,14 @@ def main():
             print("created")
         else:
             print("exists")
+
+    # --- archive-toggle ---
+    elif op == "archive-toggle":
+        current = data.get("archived", False)
+        data["archived"] = not current
+        data["updated"] = now_iso()
+        save(filepath, data)
+        print("archived" if data["archived"] else "unarchived")
 
     # --- migrate-conf <conf-file> ---
     elif op == "migrate-conf":
@@ -375,6 +399,8 @@ def main():
                 with open(jf) as f:
                     pdata = json.load(f)
             except:
+                continue
+            if pdata.get("archived"):
                 continue
             pname = pdata.get("name", "?")
             pcolor = pdata.get("color", "")

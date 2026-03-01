@@ -90,6 +90,7 @@ _proj_open() {
       fi
     fi
     _proj_ui_error "Link not found: $direct"
+    _proj_ui_hint "proj open ${_PU_ARROW} list links  ${_PC_DIM}|${_PC_RESET}${_PC_DIM}  proj link add ${_PU_ARROW} add"
     return 1
   fi
 
@@ -143,7 +144,7 @@ _proj_open() {
       read "rmidx?  ${_PC_CYAN}Remove #:${_PC_RESET} "
       if [[ "$rmidx" =~ ^[0-9]+$ ]] && (( rmidx >= 1 && rmidx <= ${#keys} )); then
         local rmkey="${keys[$rmidx]}"
-        _proj_py "$file" delete-nested links "$rmkey"
+        _proj_py "$file" delete-nested links "$rmkey" >/dev/null
         _proj_ui_success "Removed: $rmkey"
       fi
       ;;
@@ -192,7 +193,7 @@ _proj_link_add() {
 
   # Quick-add: both args → save directly
   if [[ -n "$link_type" && -n "$link_url" ]]; then
-    _proj_py "$file" set-nested links "$link_type" "$link_url"
+    _proj_py "$file" set-nested links "$link_type" "$link_url" >/dev/null
     _proj_ui_success "$(_proj_ui_link_label "$link_type") ${_PU_ARROW} ${_PC_WHITE}$link_url${_PC_RESET}"
     return
   fi
@@ -206,7 +207,7 @@ _proj_link_add() {
       *)            read "link_url?  ${_PC_CYAN}URL:${_PC_RESET} " ;;
     esac
     [[ -z "$link_url" ]] && _proj_ui_warn "Cancelled" && return
-    _proj_py "$file" set-nested links "$link_type" "$link_url"
+    _proj_py "$file" set-nested links "$link_type" "$link_url" >/dev/null
     _proj_ui_success "$(_proj_ui_link_label "$link_type") ${_PU_ARROW} ${_PC_WHITE}$link_url${_PC_RESET}"
     return
   fi
@@ -256,7 +257,7 @@ _proj_link_rm() {
   [[ -z "$link_type" ]] && _proj_ui_error "Usage: proj link rm <type>" && return 1
 
   local file=$(_proj_file "$_PROJ_CURRENT")
-  _proj_py "$file" delete-nested links "$link_type"
+  _proj_py "$file" delete-nested links "$link_type" >/dev/null
   _proj_ui_success "Link removed: $link_type"
 }
 

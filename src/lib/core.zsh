@@ -286,10 +286,11 @@ _proj_path() {
 
   if [[ ! -d "$new_path" ]]; then
     _proj_ui_error "Directory not found: $new_path"
+    _proj_ui_hint "Check path or create directory first"
     return 1
   fi
 
-  _proj_json_set "$file" path "$new_path"
+  _proj_json_set "$file" path "$new_path" >/dev/null
   _proj_ui_success "Path: ${_PC_BOLD}$new_path${_PC_RESET}"
   _proj_ui_hint "proj cd ${_PU_ARROW} jump there"
 }
@@ -467,7 +468,10 @@ for i, n in enumerate(notes, 1):
 _proj_notes_clear() {
   [[ -z "$_PROJ_CURRENT" ]] && _proj_ui_error "No active project." && return 1
   local file=$(_proj_file "$_PROJ_CURRENT")
-  _proj_json_set "$file" notes "[]"
+  local confirm
+  read "confirm?  Clear all notes? ${_PC_DIM}[y/N]${_PC_RESET} "
+  [[ "$confirm" != [yY] ]] && _proj_ui_info "Cancelled" && return
+  _proj_json_set "$file" notes "[]" >/dev/null
   _proj_ui_success "Notes cleared"
 }
 
@@ -541,30 +545,30 @@ _proj_info() {
 # ─── Project List (non-interactive) ─────────────────────────
 
 _proj_list() {
+  local show_all="$1"
   _proj_ui_header "All Projects"
 
-  local -a files
-  files=("$PROJ_DIR"/*.json(NOm))
-
-  if (( ${#files} == 0 )); then
+  local batch=$(_proj_py "$PROJ_DIR/_" list-batch "$PROJ_DIR")
+  if [[ -z "$batch" ]]; then
     echo "  ${_PC_DIM}No projects yet${_PC_RESET}"
     _proj_ui_hint "proj use <name> ${_PU_ARROW} create  ${_PC_DIM}|${_PC_RESET}${_PC_DIM}  proj demo ${_PU_ARROW} demo data"
     return
   fi
 
   local idx=0
-  for f in "${files[@]}"; do
+  local pfile pname pcolor ptask ptimer parchived active timer
+  while IFS='|' read -r pfile pname pcolor ptask ptimer parchived; do
+    [[ -z "$pname" ]] && continue
+    [[ "$parchived" == "True" && "$show_all" != "--all" ]] && continue
     idx=$((idx + 1))
-    local pname=$(_proj_json_get "$f" name)
-    local pcolor=$(_proj_json_get "$f" color)
-    local ptask=$(_proj_json_get "$f" task)
-    local active=""
-    local timer=""
+    active=""
+    timer=""
     [[ "$pname" == "$_PROJ_CURRENT" ]] && active="yes"
-    local tstatus=$(_proj_py "$f" time-status)
-    [[ "$tstatus" == running:* ]] && timer="yes"
-    _proj_ui_project_line "$idx" "$pname" "$pcolor" "$ptask" "$active" "$timer"
-  done
+    [[ "$ptimer" == "running" ]] && timer="yes"
+    local label="$pname"
+    [[ "$parchived" == "True" ]] && label="${pname} ${_PC_DIM}(archived)${_PC_RESET}"
+    _proj_ui_project_line "$idx" "$label" "$pcolor" "$ptask" "$active" "$timer"
+  done <<< "$batch"
   echo ""
 }
 
@@ -577,6 +581,57 @@ _proj_clear() {
   _proj_iterm_title ""
   _proj_iterm_badge ""
   _proj_ui_success "Tab reset"
+}
+
+# ─── Project Archive ────────────────────────────────────────
+
+_proj_archive() {
+  local name="${1:-$_PROJ_CURRENT}"
+  [[ -z "$name" ]] && _proj_ui_error "Usage: proj archive [name]" && return 1
+
+  local file=$(_proj_file "$name")
+  if [[ ! -f "$file" ]]; then
+    _proj_ui_error "Project '$name' not found"
+    return 1
+  fi
+
+  local result=$(_proj_py "$file" archive-toggle)
+  if [[ "$result" == "archived" ]]; then
+    _proj_ui_success "Archived: ${_PC_WHITE}$name${_PC_RESET}"
+    _proj_ui_hint "proj list --all ${_PU_ARROW} show archived  ${_PC_DIM}|${_PC_RESET}${_PC_DIM}  proj archive $name ${_PU_ARROW} unarchive"
+    [[ "$_PROJ_CURRENT" == "$name" ]] && _proj_clear
+  else
+    _proj_ui_success "Unarchived: ${_PC_WHITE}$name${_PC_RESET}"
+  fi
+}
+
+# ─── Project Export/Import ──────────────────────────────────
+
+_proj_export() {
+  [[ -z "$_PROJ_CURRENT" ]] && _proj_ui_error "No active project." && return 1
+  local file=$(_proj_file "$_PROJ_CURRENT")
+  _proj_py "$file" dump
+}
+
+_proj_import() {
+  local import_file="$1"
+  [[ -z "$import_file" ]] && _proj_ui_error "Usage: proj import <file.json>" && return 1
+  [[ ! -f "$import_file" ]] && _proj_ui_error "File not found: $import_file" && return 1
+
+  local name=$(python3 -c "import json; print(json.load(open('$import_file')).get('name',''))" 2>/dev/null)
+  [[ -z "$name" ]] && _proj_ui_error "Invalid project file (no name)" && return 1
+
+  local target=$(_proj_file "$name")
+  if [[ -f "$target" ]]; then
+    _proj_ui_warn "Project '$name' already exists"
+    local confirm
+    read "confirm?  Overwrite? ${_PC_DIM}[y/N]${_PC_RESET} "
+    [[ "$confirm" != [yY] ]] && _proj_ui_info "Cancelled" && return
+  fi
+
+  cp "$import_file" "$target"
+  _proj_ui_success "Imported: ${_PC_WHITE}${_PC_BOLD}$name${_PC_RESET}"
+  _proj_ui_hint "proj use $name ${_PU_ARROW} activate"
 }
 
 # ─── Project Remove ──────────────────────────────────────────

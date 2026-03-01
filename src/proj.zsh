@@ -29,7 +29,10 @@ proj() {
     info|i)         _proj_info ;;
     path|p)         shift; _proj_path "$@" ;;
     cd)             _proj_cd ;;
-    list|ls|l)      _proj_list ;;
+    list|ls|l)      shift; _proj_list "$@" ;;
+    archive|ar)     shift; _proj_archive "$@" ;;
+    export)         _proj_export ;;
+    import)         shift; _proj_import "$@" ;;
     clear|x)        _proj_clear ;;
     rm)             shift; _proj_rm "$@" ;;
 
@@ -91,6 +94,7 @@ _proj_help() {
     echo "  ${_PC_CYAN}proj use${_PC_RESET} ${_PC_WHITE}<name>${_PC_RESET} ${_PC_DIM}[color]${_PC_RESET}         ${_PC_DIM}Activate / create project${_PC_RESET}"
     echo "  ${_PC_CYAN}proj use${_PC_RESET} ${_PC_WHITE}<name>${_PC_RESET} ${_PC_DIM}-t <tpl>${_PC_RESET}       ${_PC_DIM}Create from template${_PC_RESET}"
     echo "  ${_PC_CYAN}proj list${_PC_RESET}                             ${_PC_DIM}All projects${_PC_RESET}"
+    echo "  ${_PC_CYAN}proj list${_PC_RESET} ${_PC_DIM}--all${_PC_RESET}                       ${_PC_DIM}Include archived${_PC_RESET}"
     echo "  ${_PC_CYAN}proj dash${_PC_RESET}                             ${_PC_DIM}Cross-project overview${_PC_RESET}"
     echo "  ${_PC_CYAN}proj templates${_PC_RESET}                        ${_PC_DIM}Available templates${_PC_RESET}"
     echo "  ${_PC_CYAN}proj demo${_PC_RESET}                             ${_PC_DIM}Load demo data${_PC_RESET}"
@@ -109,7 +113,7 @@ _proj_help() {
   echo "  ${_PC_CYAN}info${_PC_RESET}   ${_PC_DIM}i${_PC_RESET}    ${_PC_DIM}Details${_PC_RESET}                ${_PC_CYAN}task${_PC_RESET}  ${_PC_DIM}t${_PC_RESET}  ${_PC_DIM}Manage tasks${_PC_RESET}"
   echo "  ${_PC_CYAN}open${_PC_RESET}   ${_PC_DIM}o${_PC_RESET}    ${_PC_DIM}Links${_PC_RESET}                  ${_PC_CYAN}note${_PC_RESET}  ${_PC_DIM}n${_PC_RESET}  ${_PC_DIM}Notes${_PC_RESET}"
   echo "  ${_PC_CYAN}path${_PC_RESET}   ${_PC_DIM}p${_PC_RESET}    ${_PC_DIM}Directory${_PC_RESET}              ${_PC_CYAN}color${_PC_RESET} ${_PC_DIM}c${_PC_RESET}  ${_PC_DIM}Tab color${_PC_RESET}"
-  echo "  ${_PC_CYAN}cd${_PC_RESET}          ${_PC_DIM}Jump to dir${_PC_RESET}"
+  echo "  ${_PC_CYAN}cd${_PC_RESET}          ${_PC_DIM}Jump to dir${_PC_RESET}            ${_PC_CYAN}archive${_PC_RESET} ${_PC_DIM}ar${_PC_RESET} ${_PC_DIM}Toggle archived${_PC_RESET}"
   echo ""
   echo "  ${_PC_BOLD}Time${_PC_RESET}                               ${_PC_BOLD}AI${_PC_RESET}"
   echo "  ${_PC_DIM}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PC_RESET}                               ${_PC_DIM}${_PU_H}${_PU_H}${_PC_RESET}"
@@ -179,6 +183,40 @@ _proj_help_command() {
       echo "  ${_PC_CYAN}open${_PC_RESET} ${_PC_WHITE}<type>${_PC_RESET}            ${_PC_DIM}Open by type${_PC_RESET}"
       echo ""
       ;;
+    archive|ar)
+      echo ""
+      echo "  ${_PC_BOLD}proj archive${_PC_RESET} ${_PC_DIM}(ar)${_PC_RESET}"
+      echo ""
+      echo "  ${_PC_CYAN}archive${_PC_RESET}               ${_PC_DIM}Archive current project${_PC_RESET}"
+      echo "  ${_PC_CYAN}archive${_PC_RESET} ${_PC_WHITE}<name>${_PC_RESET}         ${_PC_DIM}Archive/unarchive by name${_PC_RESET}"
+      echo ""
+      echo "  ${_PC_DIM}Archived projects are hidden from list, menu, and dashboard.${_PC_RESET}"
+      echo "  ${_PC_DIM}Use ${_PC_CYAN}proj list --all${_PC_RESET}${_PC_DIM} to see them. Run again to unarchive.${_PC_RESET}"
+      echo ""
+      ;;
+    export)
+      echo ""
+      echo "  ${_PC_BOLD}proj export${_PC_RESET}"
+      echo ""
+      echo "  ${_PC_DIM}Dumps current project as JSON to stdout.${_PC_RESET}"
+      echo "  ${_PC_CYAN}proj export${_PC_RESET} ${_PC_DIM}> backup.json${_PC_RESET}   ${_PC_DIM}Save to file${_PC_RESET}"
+      echo ""
+      ;;
+    import)
+      echo ""
+      echo "  ${_PC_BOLD}proj import${_PC_RESET}"
+      echo ""
+      echo "  ${_PC_CYAN}import${_PC_RESET} ${_PC_WHITE}<file.json>${_PC_RESET}     ${_PC_DIM}Import project from JSON file${_PC_RESET}"
+      echo ""
+      ;;
+    list|ls)
+      echo ""
+      echo "  ${_PC_BOLD}proj list${_PC_RESET} ${_PC_DIM}(ls)${_PC_RESET}"
+      echo ""
+      echo "  ${_PC_CYAN}list${_PC_RESET}                  ${_PC_DIM}Active projects${_PC_RESET}"
+      echo "  ${_PC_CYAN}list --all${_PC_RESET}            ${_PC_DIM}Include archived${_PC_RESET}"
+      echo ""
+      ;;
     *)
       _proj_ui_warn "No help for: $cmd"
       _proj_ui_hint "proj help all ${_PU_ARROW} full reference"
@@ -204,6 +242,9 @@ _proj_help_full() {
   echo "  ${_PC_CYAN}color${_PC_RESET} ${_PC_DIM}c${_PC_RESET}  ${_PC_DIM}<color>${_PC_RESET}                ${_PC_DIM}Change tab color${_PC_RESET}"
   echo "  ${_PC_CYAN}list${_PC_RESET}  ${_PC_DIM}ls${_PC_RESET}                         ${_PC_DIM}All projects${_PC_RESET}"
   echo "  ${_PC_CYAN}dash${_PC_RESET}  ${_PC_DIM}d${_PC_RESET}                          ${_PC_DIM}Cross-project dashboard${_PC_RESET}"
+  echo "  ${_PC_CYAN}archive${_PC_RESET} ${_PC_DIM}ar${_PC_RESET} ${_PC_DIM}[name]${_PC_RESET}              ${_PC_DIM}Toggle archived${_PC_RESET}"
+  echo "  ${_PC_CYAN}export${_PC_RESET}                              ${_PC_DIM}Export project JSON${_PC_RESET}"
+  echo "  ${_PC_CYAN}import${_PC_RESET} ${_PC_DIM}<file>${_PC_RESET}                     ${_PC_DIM}Import project JSON${_PC_RESET}"
   echo "  ${_PC_CYAN}clear${_PC_RESET} ${_PC_DIM}x${_PC_RESET}                          ${_PC_DIM}Deactivate${_PC_RESET}"
   echo "  ${_PC_CYAN}rm${_PC_RESET}    ${_PC_DIM}<name>${_PC_RESET}                     ${_PC_DIM}Delete project${_PC_RESET}"
   echo ""
@@ -246,7 +287,7 @@ _proj_help_full() {
   echo ""
 
   echo "  ${_PC_DIM}Colors: ${_PC_GREEN}green${_PC_RESET} ${_PC_BLUE}blue${_PC_RESET} ${_PC_CYAN}cyan${_PC_RESET} ${_PC_RED}red${_PC_RESET} ${_PC_ORANGE}orange${_PC_RESET} ${_PC_YELLOW}yellow${_PC_RESET} ${_PC_PURPLE}purple${_PC_RESET} ${_PC_PINK}pink${_PC_RESET} ${_PC_GRAY}gray${_PC_RESET}"
-  echo "  ${_PC_DIM}proj help <cmd> ${_PU_ARROW} per-command help (task, note, link, time, open)${_PC_RESET}"
+  echo "  ${_PC_DIM}proj help <cmd> ${_PU_ARROW} per-command help (task, note, link, time, open, archive, list)${_PC_RESET}"
   echo ""
 }
 
@@ -407,6 +448,9 @@ _proj_completion() {
     'time:Time tracking'
     'color:Change color'
     'list:List projects'
+    'archive:Toggle archived'
+    'export:Export project JSON'
+    'import:Import project JSON'
     'dash:Cross-project dashboard'
     'templates:List templates'
     'clear:Deactivate'
@@ -426,7 +470,7 @@ _proj_completion() {
     _describe 'command' subcmds
   elif (( CURRENT == 3 )); then
     case "${words[2]}" in
-      use|u|rm)
+      use|u|rm|archive|ar)
         local -a projects
         for f in "$PROJ_DIR"/*.json(N); do
           local pname=$(python3 -c "import json; print(json.load(open('$f')).get('name',''))" 2>/dev/null)
@@ -469,7 +513,7 @@ _proj_completion() {
         ;;
       help|h)
         local -a helptopics
-        helptopics=(all task note link time open)
+        helptopics=(all task note link time open archive list export import)
         _describe 'help topic' helptopics
         ;;
     esac

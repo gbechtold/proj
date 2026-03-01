@@ -31,6 +31,8 @@ _proj_fzf_select() {
   local -a entries
   for f in "${files[@]}"; do
     local pname=$(_proj_json_get "$f" name)
+    local parchived=$(_proj_json_get "$f" archived)
+    [[ "$parchived" == "true" || "$parchived" == "True" ]] && continue
     local ptask=$(_proj_json_get "$f" task)
     local pcolor=$(_proj_json_get "$f" color)
     local active=""
@@ -100,9 +102,19 @@ _proj_menu() {
 
 _proj_menu_paginated() {
   local page=${1:-1}
-  local -a files
-  files=("$PROJ_DIR"/*.json(NOm))
-  local total=${#files}
+
+  # Single batch call for all project data
+  local batch=$(_proj_py "$PROJ_DIR/_" list-batch "$PROJ_DIR")
+  local -a entries
+  local pfile pname pcolor ptask ptimer parchived
+  while IFS='|' read -r pfile pname pcolor ptask ptimer parchived; do
+    [[ -z "$pname" ]] && continue
+    [[ "$parchived" == "True" ]] && continue
+    entries+=("${pname}|${pcolor}|${ptask}|${ptimer}")
+  done <<< "$batch"
+
+  local total=${#entries}
+  (( total == 0 )) && return
 
   local total_pages=$(( (total + PROJ_PAGE_SIZE - 1) / PROJ_PAGE_SIZE ))
   (( page > total_pages )) && page=$total_pages
@@ -114,16 +126,10 @@ _proj_menu_paginated() {
   _proj_ui_header "Projects  ${_PC_DIM}${page}/${total_pages}  ${_PU_DOT}  ${total} total${_PC_RESET}"
 
   for i in {$start..$end}; do
-    local f="${files[$i]}"
-    local pname=$(_proj_json_get "$f" name)
-    local pcolor=$(_proj_json_get "$f" color)
-    local ptask=$(_proj_json_get "$f" task)
-    local active=""
-    local timer=""
+    IFS='|' read -r pname pcolor ptask ptimer <<< "${entries[$i]}"
+    local active="" timer=""
     [[ "$pname" == "$_PROJ_CURRENT" ]] && active="yes"
-    local tstatus=$(_proj_py "$f" time-status)
-    [[ "$tstatus" == running:* ]] && timer="yes"
-
+    [[ "$ptimer" == "running" ]] && timer="yes"
     local idx=$(( i - start + 1 ))
     _proj_ui_project_line "$idx" "$pname" "$pcolor" "$ptask" "$active" "$timer"
   done
@@ -154,8 +160,7 @@ _proj_menu_paginated() {
       if [[ "$choice" =~ ^[0-9]+$ ]]; then
         local selected=$(( start + choice - 1 ))
         if (( selected >= 1 && selected <= total )); then
-          local selfile="${files[$selected]}"
-          local selname=$(_proj_json_get "$selfile" name)
+          local selname="${entries[$selected]%%|*}"
           _proj_use "$selname"
         else
           _proj_ui_error "Invalid selection"

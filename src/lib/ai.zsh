@@ -22,7 +22,6 @@ _proj_ai_claude() {
   local name=$(_proj_json_get "$file" name)
   local task=$(_proj_json_get "$file" task)
 
-  # Check if path is set
   if [[ -z "$proj_path" ]]; then
     echo ""
     _proj_ui_subheader "Claude Code: $name"
@@ -31,22 +30,19 @@ _proj_ai_claude() {
     read "proj_path?  ${_PC_CYAN}Project path:${_PC_RESET} "
     [[ -z "$proj_path" ]] && return
 
-    # Expand ~ to $HOME
-    proj_path="${proj_path/#\~/$HOME}"
+    proj_path=$(_proj_expand_path "$proj_path")
     _proj_py "$file" set-nested links claude "$proj_path"
     _proj_ui_success "Path saved: $proj_path"
   fi
 
-  # Expand ~ to $HOME
-  proj_path="${proj_path/#\~/$HOME}"
+  proj_path=$(_proj_expand_path "$proj_path")
 
-  # Check path exists
   if [[ ! -d "$proj_path" ]]; then
     _proj_ui_error "Path not found: $proj_path"
     return 1
   fi
 
-  # Write context file for Claude to pick up
+  # Write rich context file
   _proj_write_context "$file" "$proj_path"
 
   # Build prompt with project context
@@ -55,26 +51,28 @@ _proj_ai_claude() {
 
   local notes=$(_proj_json_get "$file" notes)
   if [[ "$notes" != "[]" && -n "$notes" ]]; then
-    local notes_flat=$(echo "$notes" | python3 -c "import json,sys; print('; '.join(json.loads(sys.stdin.read())))" 2>/dev/null)
+    local notes_flat=$(echo "$notes" | python3 -c "import json,sys; print('; '.join(n.get('text',n) if isinstance(n,dict) else n for n in json.loads(sys.stdin.read())))" 2>/dev/null)
     [[ -n "$notes_flat" ]] && prompt="$prompt | Notes: $notes_flat"
   fi
 
   echo ""
-  _proj_ui_header "Claude Code: $name" "$_PC_PURPLE"
+  _proj_ui_header "Claude Code: $name"
   echo "  ${_PC_DIM}Path:${_PC_RESET}    ${_PC_WHITE}$proj_path${_PC_RESET}"
-  echo "  ${_PC_DIM}Context:${_PC_RESET} ${_PC_WHITE}.proj-context.json written${_PC_RESET}"
+  echo "  ${_PC_DIM}Context:${_PC_RESET} ${_PC_WHITE}.proj/context.json${_PC_RESET}"
   [[ -n "$task" ]] && echo "  ${_PC_DIM}Task:${_PC_RESET}    ${_PC_WHITE}$task${_PC_RESET}"
   echo ""
 
   local open_mode="${1:-ask}"
 
   if [[ "$open_mode" == "here" ]]; then
-    # Start in current tab
     echo "  ${_PC_DIM}Starting Claude Code...${_PC_RESET}"
     (cd "$proj_path" && claude --prompt "$prompt")
   else
-    # Ask what to do
-    echo "  ${_PC_DIM}[1]${_PC_RESET} Open in new iTerm2 tab"
+    if _proj_is_iterm2; then
+      echo "  ${_PC_DIM}[1]${_PC_RESET} Open in new iTerm2 tab"
+    else
+      echo "  ${_PC_DIM}[1] Open in new tab (iTerm2 only)${_PC_RESET}"
+    fi
     echo "  ${_PC_DIM}[2]${_PC_RESET} Start here"
     echo "  ${_PC_DIM}[q]${_PC_RESET} Cancel"
     echo ""
@@ -98,7 +96,6 @@ _proj_ai_codex() {
   local proj_path=$(_proj_json_get "$file" links codex)
   local name=$(_proj_json_get "$file" name)
 
-  # Fall back to claude path if no codex-specific path
   [[ -z "$proj_path" ]] && proj_path=$(_proj_json_get "$file" links claude)
 
   if [[ -z "$proj_path" ]]; then
@@ -109,12 +106,12 @@ _proj_ai_codex() {
     read "proj_path?  ${_PC_CYAN}Project path:${_PC_RESET} "
     [[ -z "$proj_path" ]] && return
 
-    proj_path="${proj_path/#\~/$HOME}"
+    proj_path=$(_proj_expand_path "$proj_path")
     _proj_py "$file" set-nested links codex "$proj_path"
     _proj_ui_success "Path saved: $proj_path"
   fi
 
-  proj_path="${proj_path/#\~/$HOME}"
+  proj_path=$(_proj_expand_path "$proj_path")
 
   if [[ ! -d "$proj_path" ]]; then
     _proj_ui_error "Path not found: $proj_path"
@@ -124,11 +121,15 @@ _proj_ai_codex() {
   _proj_write_context "$file" "$proj_path"
 
   echo ""
-  _proj_ui_header "Codex: $name" "$_PC_ORANGE"
+  _proj_ui_header "Codex: $name"
   echo "  ${_PC_DIM}Path:${_PC_RESET}    ${_PC_WHITE}$proj_path${_PC_RESET}"
-  echo "  ${_PC_DIM}Context:${_PC_RESET} ${_PC_WHITE}.proj-context.json written${_PC_RESET}"
+  echo "  ${_PC_DIM}Context:${_PC_RESET} ${_PC_WHITE}.proj/context.json${_PC_RESET}"
   echo ""
-  echo "  ${_PC_DIM}[1]${_PC_RESET} Open in new iTerm2 tab"
+  if _proj_is_iterm2; then
+    echo "  ${_PC_DIM}[1]${_PC_RESET} Open in new iTerm2 tab"
+  else
+    echo "  ${_PC_DIM}[1] Open in new tab (iTerm2 only)${_PC_RESET}"
+  fi
   echo "  ${_PC_DIM}[2]${_PC_RESET} Start here"
   echo "  ${_PC_DIM}[q]${_PC_RESET} Cancel"
   echo ""
@@ -144,29 +145,12 @@ _proj_ai_codex() {
   esac
 }
 
-# ─── Write Context File ─────────────────────────────────────
+# ─── Write Context File (Rich) ──────────────────────────────
 
 _proj_write_context() {
   local proj_file="$1"
   local proj_path="$2"
-
-  # Write .proj-context.json to the project directory
-  python3 -c "
-import json, os
-with open('$proj_file') as f:
-    data = json.load(f)
-# Write a clean context file
-context = {
-    'name': data.get('name', ''),
-    'task': data.get('task', ''),
-    'notes': data.get('notes', []),
-    'links': data.get('links', {}),
-}
-out_path = os.path.join('$proj_path', '.proj-context.json')
-with open(out_path, 'w') as f:
-    json.dump(context, f, indent=2, ensure_ascii=False)
-    f.write('\n')
-" 2>/dev/null
+  _proj_py "$proj_file" write-context "$proj_path"
 }
 
 # ─── Open New iTerm2 Tab ────────────────────────────────────
@@ -176,6 +160,12 @@ _proj_ai_new_tab() {
   local proj_path="$2"
   local prompt="$3"
   local name="$4"
+
+  if ! _proj_is_iterm2; then
+    _proj_ui_error "New tab requires iTerm2"
+    _proj_ui_hint "Choose option [2] to start here instead"
+    return 1
+  fi
 
   _proj_ui_info "Opening new tab..."
 

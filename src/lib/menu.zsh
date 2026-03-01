@@ -1,6 +1,12 @@
 # proj/lib/menu.zsh — Interactive menus
 # Part of proj · Project Hub in your Terminal
 
+# ─── fzf Detection ────────────────────────────────────────────
+
+_proj_has_fzf() {
+  [[ -z "$PROJ_NO_FZF" ]] && command -v fzf &>/dev/null
+}
+
 # ─── Search Projects (substring, case-insensitive) ───────────
 
 _proj_search_projects() {
@@ -15,15 +21,57 @@ _proj_search_projects() {
   printf '%s\n' "${matches[@]}"
 }
 
+# ─── fzf Project Selector ─────────────────────────────────────
+
+_proj_fzf_select() {
+  local -a files
+  files=("$PROJ_DIR"/*.json(NOm))
+  (( ${#files} == 0 )) && return 1
+
+  local -a entries
+  for f in "${files[@]}"; do
+    local pname=$(_proj_json_get "$f" name)
+    local ptask=$(_proj_json_get "$f" task)
+    local pcolor=$(_proj_json_get "$f" color)
+    local active=""
+    [[ "$pname" == "$_PROJ_CURRENT" ]] && active=" *"
+    local display="${pname}${active}"
+    [[ -n "$ptask" ]] && display="${display} · ${ptask}"
+    entries+=("${f}|${pname}|${display}")
+  done
+
+  local selected=$(printf '%s\n' "${entries[@]}" | \
+    fzf --delimiter='|' \
+        --with-nth=3 \
+        --height=40% \
+        --reverse \
+        --border \
+        --prompt="proj> " \
+        --header="Select project (ESC=cancel, +=new)" \
+        --bind="+=abort" \
+        --preview="python3 '$PROJ_PY' {1} dump 2>/dev/null | python3 -c \"
+import json,sys
+d=json.loads(sys.stdin.read())
+print(f'  Name:  {d.get(\\\"name\\\",\\\"?\\\")}'  )
+print(f'  Color: {d.get(\\\"color\\\",\\\"-\\\")}'  )
+print(f'  Task:  {d.get(\\\"task\\\",\\\"-\\\")}'  )
+print(f'  Notes: {len(d.get(\\\"notes\\\",[]))}'  )
+print(f'  Links: {len(d.get(\\\"links\\\",{}))}'  )
+print(f'  Time:  {len(d.get(\\\"time\\\",[]))} entries'  )
+\"" \
+        --preview-window=right:35%:wrap 2>/dev/null)
+
+  [[ -z "$selected" ]] && return 1
+  echo "${selected}" | cut -d'|' -f2
+}
+
 # ─── Main Project Menu ───────────────────────────────────────
 
 _proj_menu() {
-  local page=${1:-1}
   local -a files
-
   files=("$PROJ_DIR"/*.json(NOm))
-
   local total=${#files}
+
   if (( total == 0 )); then
     _proj_ui_banner
     echo "  ${_PC_DIM}No projects yet. Let's create one!${_PC_RESET}"
@@ -31,7 +79,6 @@ _proj_menu() {
     echo "  ${_PC_DIM}[+] New project  |  [d] Load demos  |  [q] Quit${_PC_RESET}"
     echo ""
     read "choice?  ${_PC_CYAN}>${_PC_RESET} "
-
     case "$choice" in
       +|new|n) _proj_new_interactive ;;
       d|demo) _proj_create_demos && _proj_menu ;;
@@ -40,6 +87,23 @@ _proj_menu() {
     return
   fi
 
+  # fzf mode
+  if _proj_has_fzf; then
+    local selected=$(_proj_fzf_select)
+    [[ -n "$selected" ]] && _proj_use "$selected"
+    return
+  fi
+
+  # Paginated fallback
+  _proj_menu_paginated "${1:-1}"
+}
+
+_proj_menu_paginated() {
+  local page=${1:-1}
+  local -a files
+  files=("$PROJ_DIR"/*.json(NOm))
+  local total=${#files}
+
   local total_pages=$(( (total + PROJ_PAGE_SIZE - 1) / PROJ_PAGE_SIZE ))
   (( page > total_pages )) && page=$total_pages
   (( page < 1 )) && page=1
@@ -47,7 +111,7 @@ _proj_menu() {
   local end=$(( page * PROJ_PAGE_SIZE ))
   (( end > total )) && end=$total
 
-  _proj_ui_header "Projects  ${_PC_DIM}${page}/${total_pages}  ${_PU_DOT}  ${total} total${_PC_RESET}" "$_PC_CYAN"
+  _proj_ui_header "Projects  ${_PC_DIM}${page}/${total_pages}  ${_PU_DOT}  ${total} total${_PC_RESET}"
 
   for i in {$start..$end}; do
     local f="${files[$i]}"
@@ -67,7 +131,6 @@ _proj_menu() {
   echo ""
   _proj_ui_separator
 
-  # Navigation line
   local nav=""
   (( page > 1 )) && nav="[p] Prev  "
   (( page < total_pages )) && nav="${nav}[w] Next  "
@@ -82,10 +145,10 @@ _proj_menu() {
       _proj_new_interactive
       ;;
     p|P)
-      (( page > 1 )) && _proj_menu $(( page - 1 ))
+      (( page > 1 )) && _proj_menu_paginated $(( page - 1 ))
       ;;
     w|W)
-      (( page < total_pages )) && _proj_menu $(( page + 1 ))
+      (( page < total_pages )) && _proj_menu_paginated $(( page + 1 ))
       ;;
     *)
       if [[ "$choice" =~ ^[0-9]+$ ]]; then
@@ -104,12 +167,10 @@ _proj_menu() {
         results=(${results:#})  # filter empty
 
         if (( ${#results} == 1 )); then
-          # Exact one match → activate
           local match_name="${results[1]#*|}"
           _proj_ui_info "Match: ${_PC_WHITE}${_PC_BOLD}${match_name}${_PC_RESET}"
           _proj_use "$match_name"
         elif (( ${#results} > 1 )); then
-          # Multiple matches → show selection
           echo ""
           _proj_ui_subheader "Matches for \"$choice\""
           echo ""
@@ -126,7 +187,6 @@ _proj_menu() {
             _proj_use "$sel_name"
           fi
         else
-          # No match → ask before creating
           echo ""
           _proj_ui_warn "No project matching \"${_PC_WHITE}${choice}${_PC_RESET}${_PC_YELLOW}\"."
           read "yn?  Create it? ${_PC_DIM}[y/N]${_PC_RESET} "
@@ -154,9 +214,19 @@ _proj_new_interactive() {
 
 _proj_new_interactive_with_name() {
   local name="$1"
-  echo "  ${_PC_DIM}Colors: ${_PC_GREEN}green${_PC_RESET} ${_PC_BLUE}blue${_PC_RESET} ${_PC_CYAN}cyan${_PC_RESET} ${_PC_RED}red${_PC_RESET} ${_PC_ORANGE}orange${_PC_RESET} ${_PC_YELLOW}yellow${_PC_RESET} ${_PC_PURPLE}purple${_PC_RESET} ${_PC_PINK}pink${_PC_RESET} ${_PC_GRAY}gray${_PC_RESET}"
-  read "color?  ${_PC_CYAN}Color ${_PC_DIM}[enter=cyan]:${_PC_RESET} "
-  [[ -z "$color" ]] && color="cyan"
 
-  _proj_use "$name" "$color"
+  # Offer templates
+  if (( ${#PROJ_TEMPLATES} > 0 )); then
+    echo "  ${_PC_DIM}Templates:${_PC_RESET} ${_PC_BOLD}${(kj:, :)PROJ_TEMPLATES}${_PC_RESET}${_PC_DIM}, none${_PC_RESET}"
+    read "tpl?  ${_PC_CYAN}Template ${_PC_DIM}[enter=none]:${_PC_RESET} "
+  fi
+
+  if [[ -n "$tpl" && "$tpl" != "none" && -n "${PROJ_TEMPLATES[$tpl]}" ]]; then
+    _proj_use "$name" -t "$tpl"
+  else
+    echo "  ${_PC_DIM}Colors: ${_PC_GREEN}green${_PC_RESET} ${_PC_BLUE}blue${_PC_RESET} ${_PC_CYAN}cyan${_PC_RESET} ${_PC_RED}red${_PC_RESET} ${_PC_ORANGE}orange${_PC_RESET} ${_PC_YELLOW}yellow${_PC_RESET} ${_PC_PURPLE}purple${_PC_RESET} ${_PC_PINK}pink${_PC_RESET} ${_PC_GRAY}gray${_PC_RESET}"
+    read "color?  ${_PC_CYAN}Color ${_PC_DIM}[enter=cyan]:${_PC_RESET} "
+    [[ -z "$color" ]] && color="cyan"
+    _proj_use "$name" "$color"
+  fi
 }

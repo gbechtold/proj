@@ -24,6 +24,31 @@ _PROJ_LINK_TYPES=(
   "custom:Custom Link"
 )
 
+# ─── Link Type Helpers ────────────────────────────────────────
+
+# Resolve type name: exact match, then unique prefix match
+_proj_link_resolve_type() {
+  local input="${1:l}"
+  for entry in "${_PROJ_LINK_TYPES[@]}"; do
+    local key="${entry%%:*}"
+    [[ "$key" == "$input" ]] && echo "$key" && return
+  done
+  local -a matches
+  for entry in "${_PROJ_LINK_TYPES[@]}"; do
+    local key="${entry%%:*}"
+    [[ "$key" == ${input}* ]] && matches+=("$key")
+  done
+  (( ${#matches} == 1 )) && echo "${matches[1]}"
+}
+
+_proj_link_type_list() {
+  local -a names
+  for entry in "${_PROJ_LINK_TYPES[@]}"; do
+    names+=("${entry%%:*}")
+  done
+  echo "${(j:, :)names}"
+}
+
 # ─── Open Links Menu ────────────────────────────────────────
 
 _proj_open() {
@@ -32,15 +57,12 @@ _proj_open() {
   local file=$(_proj_file "$_PROJ_CURRENT")
   local direct="$1"
 
-  # Get link keys
   local -a keys
   keys=("${(@f)$(_proj_py "$file" list-keys links)}")
-
-  # Filter empty entries
   keys=(${keys:#})
 
   if (( ${#keys} == 0 )); then
-    _proj_ui_header "Links: $_PROJ_CURRENT" "$_PC_ORANGE"
+    _proj_ui_header "Links: $_PROJ_CURRENT"
     echo "  ${_PC_DIM}No links yet${_PC_RESET}"
     echo ""
     echo "  ${_PC_DIM}[+] Add link  |  [q] Back${_PC_RESET}"
@@ -61,7 +83,6 @@ _proj_open() {
         return
       fi
     else
-      # Open by type name
       local url=$(_proj_json_get "$file" links "$direct")
       if [[ -n "$url" ]]; then
         _proj_open_url "$direct" "$url"
@@ -72,8 +93,32 @@ _proj_open() {
     return 1
   fi
 
-  # Interactive menu
-  _proj_ui_header "Links: $_PROJ_CURRENT" "$_PC_ORANGE"
+  # fzf mode for link selection
+  if _proj_has_fzf; then
+    local -a fzf_entries
+    for key in "${keys[@]}"; do
+      local url=$(_proj_json_get "$file" links "$key")
+      local label=$(_proj_ui_link_label "$key")
+      fzf_entries+=("${key}|${label}|${url}")
+    done
+    local selected=$(printf '%s\n' "${fzf_entries[@]}" | \
+      fzf --delimiter='|' \
+          --with-nth=2,3 \
+          --height=40% \
+          --reverse \
+          --border \
+          --prompt="open> " \
+          --header="Select link to open" 2>/dev/null)
+    if [[ -n "$selected" ]]; then
+      local sel_key=$(echo "$selected" | cut -d'|' -f1)
+      local sel_url=$(echo "$selected" | cut -d'|' -f3)
+      _proj_open_url "$sel_key" "$sel_url"
+    fi
+    return
+  fi
+
+  # Interactive menu (no fzf)
+  _proj_ui_header "Links: $_PROJ_CURRENT"
 
   local idx=0
   for key in "${keys[@]}"; do
@@ -114,7 +159,7 @@ _proj_open() {
   esac
 }
 
-# ─── Add Link ────────────────────────────────────────────────
+# ─── Link Management ────────────────────────────────────────
 
 _proj_link() {
   local subcmd="${1:-add}"
@@ -134,51 +179,74 @@ _proj_link_add() {
   local link_type="$1"
   local link_url="$2"
 
-  # Interactive if no args
-  if [[ -z "$link_type" ]]; then
-    echo ""
-    _proj_ui_subheader "Add Link to $_PROJ_CURRENT"
-    echo ""
-
-    local idx=0
-    for entry in "${_PROJ_LINK_TYPES[@]}"; do
-      idx=$((idx + 1))
-      local key="${entry%%:*}"
-      local label="${entry#*:}"
-      local icon=$(_proj_ui_link_icon "$key")
-      printf "  ${_PC_BOLD}%2d)${_PC_RESET} %s %s\n" "$idx" "$icon" "$label"
-    done
-
-    echo ""
-    read "tidx?  ${_PC_CYAN}Type #:${_PC_RESET} "
-    [[ -z "$tidx" ]] && return
-
-    if [[ "$tidx" =~ ^[0-9]+$ ]] && (( tidx >= 1 && tidx <= ${#_PROJ_LINK_TYPES} )); then
-      local entry="${_PROJ_LINK_TYPES[$tidx]}"
-      link_type="${entry%%:*}"
-    else
-      link_type="$tidx"
+  # Resolve type if given
+  if [[ -n "$link_type" ]]; then
+    local resolved=$(_proj_link_resolve_type "$link_type")
+    if [[ -z "$resolved" ]]; then
+      _proj_ui_error "Unknown link type: $link_type"
+      echo "  ${_PC_DIM}Types: $(_proj_link_type_list)${_PC_RESET}"
+      return 1
     fi
+    link_type="$resolved"
   fi
 
-  if [[ -z "$link_url" ]]; then
-    case "$link_type" in
-      gmail)
-        read "link_url?  ${_PC_CYAN}Search term:${_PC_RESET} " ;;
-      claude|codex)
-        read "link_url?  ${_PC_CYAN}Project path:${_PC_RESET} " ;;
-      ssh)
-        read "link_url?  ${_PC_CYAN}SSH command (e.g. ssh user@host):${_PC_RESET} " ;;
-      *)
-        read "link_url?  ${_PC_CYAN}URL:${_PC_RESET} " ;;
-    esac
+  # Quick-add: both args → save directly
+  if [[ -n "$link_type" && -n "$link_url" ]]; then
+    _proj_py "$file" set-nested links "$link_type" "$link_url"
+    _proj_ui_success "$(_proj_ui_link_label "$link_type") ${_PU_ARROW} ${_PC_WHITE}$link_url${_PC_RESET}"
+    return
   fi
+
+  # Type given, no URL → prompt for URL only
+  if [[ -n "$link_type" ]]; then
+    case "$link_type" in
+      gmail)        read "link_url?  ${_PC_CYAN}Search term:${_PC_RESET} " ;;
+      claude|codex) read "link_url?  ${_PC_CYAN}Project path:${_PC_RESET} " ;;
+      ssh)          read "link_url?  ${_PC_CYAN}SSH command:${_PC_RESET} " ;;
+      *)            read "link_url?  ${_PC_CYAN}URL:${_PC_RESET} " ;;
+    esac
+    [[ -z "$link_url" ]] && _proj_ui_warn "Cancelled" && return
+    _proj_py "$file" set-nested links "$link_type" "$link_url"
+    _proj_ui_success "$(_proj_ui_link_label "$link_type") ${_PU_ARROW} ${_PC_WHITE}$link_url${_PC_RESET}"
+    return
+  fi
+
+  # No args → interactive wizard
+  echo ""
+  _proj_ui_subheader "Add Link to $_PROJ_CURRENT"
+  echo ""
+
+  local idx=0
+  for entry in "${_PROJ_LINK_TYPES[@]}"; do
+    idx=$((idx + 1))
+    local key="${entry%%:*}"
+    local label="${entry#*:}"
+    local icon=$(_proj_ui_link_icon "$key")
+    printf "  ${_PC_DIM}%2d)${_PC_RESET} %s %s\n" "$idx" "$icon" "$label"
+  done
+
+  echo ""
+  read "tidx?  ${_PC_CYAN}Type #:${_PC_RESET} "
+  [[ -z "$tidx" ]] && return
+
+  if [[ "$tidx" =~ ^[0-9]+$ ]] && (( tidx >= 1 && tidx <= ${#_PROJ_LINK_TYPES} )); then
+    local entry="${_PROJ_LINK_TYPES[$tidx]}"
+    link_type="${entry%%:*}"
+  else
+    link_type="$tidx"
+  fi
+
+  case "$link_type" in
+    gmail)        read "link_url?  ${_PC_CYAN}Search term:${_PC_RESET} " ;;
+    claude|codex) read "link_url?  ${_PC_CYAN}Project path:${_PC_RESET} " ;;
+    ssh)          read "link_url?  ${_PC_CYAN}SSH command (e.g. ssh user@host):${_PC_RESET} " ;;
+    *)            read "link_url?  ${_PC_CYAN}URL:${_PC_RESET} " ;;
+  esac
 
   [[ -z "$link_url" ]] && _proj_ui_warn "Cancelled" && return
 
   _proj_py "$file" set-nested links "$link_type" "$link_url"
-  _proj_ui_success "Link saved: $(_proj_ui_link_label "$link_type") ${_PU_ARROW} ${_PC_DIM}$link_url${_PC_RESET}"
-  _proj_ui_hint "proj open ${_PU_ARROW} show links  ${_PC_DIM}|${_PC_RESET}${_PC_DIM}  proj open $link_type ${_PU_ARROW} quick open"
+  _proj_ui_success "$(_proj_ui_link_label "$link_type") ${_PU_ARROW} ${_PC_WHITE}$link_url${_PC_RESET}"
 }
 
 _proj_link_rm() {
@@ -198,15 +266,22 @@ _proj_open_url() {
   local type="$1"
   local url="$2"
 
+  # Empty URL (template placeholder)
+  if [[ -z "$url" ]]; then
+    _proj_ui_warn "No URL set for $(_proj_ui_link_label "$type")"
+    _proj_ui_hint "proj link add $type <url> ${_PU_ARROW} set URL"
+    return
+  fi
+
   # Special handling for Gmail
   if [[ "$type" == "gmail" ]]; then
     local encoded=$(python3 -c "import urllib.parse; print(urllib.parse.quote('$url'))")
     url="https://mail.google.com/mail/u/0/#search/${encoded}"
   fi
 
-  # Special handling for claude/codex paths — don't open in browser
+  # claude/codex paths — don't open in browser
   if [[ "$type" == "claude" || "$type" == "codex" ]]; then
-    _proj_ui_info "Path: ${_PC_BOLD}$url${_PC_RESET}"
+    _proj_ui_info "Path: ${_PC_WHITE}${_PC_BOLD}$url${_PC_RESET}"
     _proj_ui_hint "proj $type ${_PU_ARROW} start AI session"
     return
   fi
@@ -214,9 +289,8 @@ _proj_open_url() {
   # SSH — copy to clipboard + show
   if [[ "$type" == "ssh" ]]; then
     echo "$url" | pbcopy
-    _proj_ui_info "SSH: ${_PC_BOLD}$url${_PC_RESET}"
+    _proj_ui_info "SSH: ${_PC_WHITE}${_PC_BOLD}$url${_PC_RESET}"
     _proj_ui_success "Copied to clipboard"
-    _proj_ui_hint "Paste in terminal to connect"
     return
   fi
 

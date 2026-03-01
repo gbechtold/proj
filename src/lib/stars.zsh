@@ -38,7 +38,7 @@ _proj_sessions() {
   fi
 
   # Expand tilde
-  proj_path="${proj_path/#\~/$HOME}"
+  proj_path=$(_proj_expand_path "$proj_path")
 
   _proj_ui_header "Claude Sessions: $_PROJ_CURRENT" "$_PC_PURPLE"
 
@@ -95,7 +95,7 @@ _proj_deploy() {
   fi
 
   local proj_path=$(_proj_stars_path)
-  proj_path="${proj_path/#\~/$HOME}"
+  proj_path=$(_proj_expand_path "$proj_path")
 
   _proj_ui_header "Deploy: $_PROJ_CURRENT" "$_PC_RED"
   command stars deploy --project-path "$proj_path" "$@" 2>&1

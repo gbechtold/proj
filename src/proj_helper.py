@@ -112,10 +112,54 @@ def main():
             for k in target:
                 print(k)
 
+    # --- set-list <key> <index> <value> ---
+    elif op == "set-list":
+        key, idx, value = args[0], int(args[1]), args[2]
+        if key in data and isinstance(data[key], list) and 0 <= idx < len(data[key]):
+            old = data[key][idx]
+            if isinstance(old, dict):
+                old["text"] = value
+                old["updated"] = now_iso()
+            else:
+                data[key][idx] = {"text": value, "created": now_iso()}
+        data["updated"] = now_iso()
+        save(filepath, data)
+
+    # --- append-note <text> ---
+    elif op == "append-note":
+        text = args[0]
+        if "notes" not in data or not isinstance(data["notes"], list):
+            data["notes"] = []
+        data["notes"].append({"text": text, "created": now_iso()})
+        data["updated"] = now_iso()
+        save(filepath, data)
+
     # --- count <key> ---
     elif op == "count":
         val = data.get(args[0], [])
         print(len(val) if isinstance(val, (list, dict)) else 0)
+
+    # --- info-batch ---
+    elif op == "info-batch":
+        notes = data.get("notes", [])
+        links = data.get("links", {})
+        time_entries = data.get("time", [])
+        tasks = data.get("tasks", [])
+        note_count = len(notes) if isinstance(notes, list) else 0
+        link_count = len(links) if isinstance(links, dict) else 0
+        time_count = len(time_entries) if isinstance(time_entries, list) else 0
+        task_count = len(tasks) if isinstance(tasks, list) else 0
+        timer_status = "idle"
+        if isinstance(time_entries, list):
+            for entry in reversed(time_entries):
+                if isinstance(entry, dict) and entry.get("start") and not entry.get("stop"):
+                    start = datetime.fromisoformat(entry["start"])
+                    delta = datetime.now() - start
+                    hours, remainder = divmod(int(delta.total_seconds()), 3600)
+                    minutes = remainder // 60
+                    timer_status = f"running:{entry['start']}:{hours}h {minutes}m"
+                    break
+        print(f"{note_count}|{link_count}|{time_count}|{task_count}|{timer_status}")
 
     # --- dump ---
     elif op == "dump":
@@ -258,6 +302,193 @@ def main():
         hours, remainder = divmod(total_seconds, 3600)
         minutes = remainder // 60
         print(f"TOTAL|{hours}h {minutes:02d}m|{len(results)} entries")
+
+    # --- task-list ---
+    elif op == "task-list":
+        if "tasks" not in data and data.get("task"):
+            data["tasks"] = [{"text": data["task"], "status": "todo", "created": data.get("created", now_iso())}]
+            data["updated"] = now_iso()
+            save(filepath, data)
+        for i, t in enumerate(data.get("tasks", [])):
+            print(f"{i}|{t.get('text','')}|{t.get('status','todo')}|{t.get('created','')}")
+
+    # --- task-add <text...> ---
+    elif op == "task-add":
+        text = " ".join(args)
+        if "tasks" not in data:
+            data["tasks"] = []
+        if data.get("task") and not data["tasks"]:
+            data["tasks"].append({"text": data["task"], "status": "todo", "created": data.get("created", now_iso())})
+        data["tasks"].append({"text": text, "status": "todo", "created": now_iso()})
+        data["updated"] = now_iso()
+        save(filepath, data)
+        print(f"added:{len(data['tasks']) - 1}")
+
+    # --- task-update <index> <status> ---
+    elif op == "task-update":
+        idx, new_status = int(args[0]), args[1]
+        tasks = data.get("tasks", [])
+        if 0 <= idx < len(tasks):
+            if new_status == "doing":
+                for t in tasks:
+                    if t.get("status") == "doing":
+                        t["status"] = "todo"
+            tasks[idx]["status"] = new_status
+            doing = next((t["text"] for t in tasks if t.get("status") == "doing"), "")
+            data["task"] = doing
+            data["updated"] = now_iso()
+            save(filepath, data)
+            print(f"updated:{idx}:{new_status}")
+
+    # --- task-rm <index> ---
+    elif op == "task-rm":
+        idx = int(args[0])
+        tasks = data.get("tasks", [])
+        if 0 <= idx < len(tasks):
+            tasks.pop(idx)
+            doing = next((t["text"] for t in tasks if t.get("status") == "doing"), "")
+            data["task"] = doing
+            data["updated"] = now_iso()
+            save(filepath, data)
+
+    # --- task-doing ---
+    elif op == "task-doing":
+        tasks = data.get("tasks", [])
+        doing = next((t["text"] for t in tasks if t.get("status") == "doing"), "")
+        if not doing:
+            doing = data.get("task", "")
+        print(doing)
+
+    # --- dash-data <proj_dir> ---
+    elif op == "dash-data":
+        from datetime import timedelta
+        import glob as globmod
+        proj_dir = args[0] if args else os.path.dirname(filepath)
+        now = datetime.now()
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        week_start = today_start - timedelta(days=today_start.weekday())
+        week_secs = 0
+        today_secs = 0
+        week_projects = set()
+        for jf in sorted(globmod.glob(os.path.join(proj_dir, "*.json"))):
+            try:
+                with open(jf) as f:
+                    pdata = json.load(f)
+            except:
+                continue
+            pname = pdata.get("name", "?")
+            pcolor = pdata.get("color", "")
+            for entry in pdata.get("time", []):
+                if isinstance(entry, dict) and entry.get("start") and not entry.get("stop"):
+                    start = datetime.fromisoformat(entry["start"])
+                    delta = now - start
+                    h, rem = divmod(int(delta.total_seconds()), 3600)
+                    m = rem // 60
+                    dtask = pdata.get("task", "")
+                    print(f"TIMER|{pname}|{pcolor}|{h}h {m:02d}m|{dtask}")
+            for t in pdata.get("tasks", []):
+                if t.get("status") == "doing":
+                    print(f"DOING|{pname}|{pcolor}|{t['text']}")
+            if "tasks" not in pdata and pdata.get("task"):
+                print(f"DOING|{pname}|{pcolor}|{pdata['task']}")
+            for entry in pdata.get("time", []):
+                if not isinstance(entry, dict) or not entry.get("start"):
+                    continue
+                start = datetime.fromisoformat(entry["start"])
+                stop_str = entry.get("stop")
+                stop = datetime.fromisoformat(stop_str) if stop_str else now
+                if start >= week_start:
+                    secs = int((stop - start).total_seconds())
+                    week_secs += secs
+                    week_projects.add(pname)
+                    if start >= today_start:
+                        today_secs += secs
+            updated = pdata.get("updated", "")
+            if updated:
+                print(f"RECENT|{pname}|{pcolor}|{updated}")
+        wh, wr = divmod(week_secs, 3600)
+        th, tr = divmod(today_secs, 3600)
+        print(f"SUMMARY|{wh}h {wr // 60:02d}m|{th}h {tr // 60:02d}m|{len(week_projects)}")
+
+    # --- write-context <proj_path> ---
+    elif op == "write-context":
+        import subprocess
+        proj_path = args[0]
+        git_info = {}
+        if os.path.isdir(os.path.join(proj_path, ".git")):
+            try:
+                git_info["branch"] = subprocess.check_output(
+                    ["git", "-C", proj_path, "rev-parse", "--abbrev-ref", "HEAD"],
+                    stderr=subprocess.DEVNULL, timeout=2).decode().strip()
+            except:
+                pass
+            try:
+                st = subprocess.check_output(
+                    ["git", "-C", proj_path, "status", "--porcelain"],
+                    stderr=subprocess.DEVNULL, timeout=2).decode().strip()
+                git_info["dirty"] = bool(st)
+                git_info["changed_files"] = len(st.splitlines()) if st else 0
+            except:
+                pass
+            try:
+                lg = subprocess.check_output(
+                    ["git", "-C", proj_path, "log", "--oneline", "-5"],
+                    stderr=subprocess.DEVNULL, timeout=2).decode().strip()
+                if lg:
+                    git_info["recent_commits"] = lg.splitlines()
+            except:
+                pass
+        file_tree = []
+        skip = {".git", "node_modules", "__pycache__", "vendor", ".venv", "venv", ".next", "dist", "build"}
+        for root, dirs, fnames in os.walk(proj_path):
+            rel = os.path.relpath(root, proj_path)
+            depth = 0 if rel == "." else rel.count(os.sep) + 1
+            if depth > 2:
+                dirs.clear()
+                continue
+            dirs[:] = [d for d in dirs if d not in skip and not d.startswith(".")]
+            for fn in fnames:
+                if not fn.startswith("."):
+                    file_tree.append(os.path.join(rel, fn) if rel != "." else fn)
+            if len(file_tree) > 50:
+                break
+        project_type = None
+        for marker, ptype in {"package.json": "node", "requirements.txt": "python",
+                              "Gemfile": "ruby", "composer.json": "php",
+                              "Cargo.toml": "rust", "go.mod": "go"}.items():
+            if os.path.isfile(os.path.join(proj_path, marker)):
+                project_type = ptype
+                break
+        timer = {"status": "idle"}
+        for entry in reversed(data.get("time", [])):
+            if isinstance(entry, dict) and entry.get("start") and not entry.get("stop"):
+                start = datetime.fromisoformat(entry["start"])
+                delta = datetime.now() - start
+                h, rem = divmod(int(delta.total_seconds()), 3600)
+                timer = {"status": "running", "elapsed": f"{h}h {rem // 60}m"}
+                break
+        tasks = data.get("tasks", [])
+        if not tasks and data.get("task"):
+            tasks = [{"text": data["task"], "status": "todo"}]
+        context = {"name": data.get("name", ""), "task": data.get("task", ""),
+                   "tasks": tasks, "notes": data.get("notes", []),
+                   "links": data.get("links", {}), "timer": timer}
+        if project_type:
+            context["project_type"] = project_type
+        if git_info:
+            context["git"] = git_info
+        if file_tree:
+            context["file_tree"] = sorted(file_tree)[:50]
+        ctx_dir = os.path.join(proj_path, ".proj")
+        os.makedirs(ctx_dir, exist_ok=True)
+        ctx_path = os.path.join(ctx_dir, "context.json")
+        with open(ctx_path, "w") as f:
+            json.dump(context, f, indent=2, ensure_ascii=False)
+            f.write("\n")
+        with open(os.path.join(proj_path, ".proj-context.json"), "w") as f:
+            json.dump(context, f, indent=2, ensure_ascii=False)
+            f.write("\n")
+        print(f"written:{ctx_path}")
 
     else:
         print(f"Unknown operation: {op}", file=sys.stderr)

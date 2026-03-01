@@ -35,10 +35,14 @@ proj() {
 
     # Content
     task|t)         shift; _proj_task "$@" ;;
-    note|n)         shift; _proj_note "$@" ;;
+    note|n)         shift; _proj_note_dispatch "$@" ;;
     notes)          _proj_notes ;;
     notes-clear|nc) _proj_notes_clear ;;
     color|c)        shift; _proj_color "$@" ;;
+
+    # Dashboard & Templates
+    dash|status|d)  _proj_dash ;;
+    templates|tpl)  _proj_templates ;;
 
     # Links
     open|o)         shift; _proj_open "$@" ;;
@@ -61,69 +65,188 @@ proj() {
     demo)           _proj_create_demos ;;
     migrate)        _proj_migrate_conf ;;
     version|v)      _proj_ui_banner ;;
-    help|h)         _proj_help ;;
+    help|h|'?')     shift 2>/dev/null; _proj_help "$@" ;;
 
-    *) _proj_ui_error "Unknown: $cmd" && echo "" && _proj_help ;;
+    *) _proj_ui_error "Unknown: $cmd" && _proj_ui_hint "proj help ${_PU_ARROW} commands" ;;
   esac
 }
 
 # ─── Help ────────────────────────────────────────────────────
 
 _proj_help() {
+  local topic="$1"
+
+  # Per-command help
+  if [[ -n "$topic" ]]; then
+    _proj_help_command "$topic"
+    return
+  fi
+
+  # Context-aware: no project active → getting started
+  if [[ -z "$_PROJ_CURRENT" ]]; then
+    _proj_ui_banner
+    echo "  ${_PC_BOLD}Getting Started${_PC_RESET}"
+    echo "  ${_PC_DIM}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PC_RESET}"
+    echo "  ${_PC_CYAN}proj${_PC_RESET}                              ${_PC_DIM}Interactive menu${_PC_RESET}"
+    echo "  ${_PC_CYAN}proj use${_PC_RESET} ${_PC_WHITE}<name>${_PC_RESET} ${_PC_DIM}[color]${_PC_RESET}         ${_PC_DIM}Activate / create project${_PC_RESET}"
+    echo "  ${_PC_CYAN}proj use${_PC_RESET} ${_PC_WHITE}<name>${_PC_RESET} ${_PC_DIM}-t <tpl>${_PC_RESET}       ${_PC_DIM}Create from template${_PC_RESET}"
+    echo "  ${_PC_CYAN}proj list${_PC_RESET}                             ${_PC_DIM}All projects${_PC_RESET}"
+    echo "  ${_PC_CYAN}proj dash${_PC_RESET}                             ${_PC_DIM}Cross-project overview${_PC_RESET}"
+    echo "  ${_PC_CYAN}proj templates${_PC_RESET}                        ${_PC_DIM}Available templates${_PC_RESET}"
+    echo "  ${_PC_CYAN}proj demo${_PC_RESET}                             ${_PC_DIM}Load demo data${_PC_RESET}"
+    echo ""
+    echo "  ${_PC_DIM}proj help all ${_PU_ARROW} full command reference${_PC_RESET}"
+    echo ""
+    return
+  fi
+
+  # Project active → working commands
+  echo ""
+  echo "  ${_PC_BOLD}Working: ${_PC_WHITE}$_PROJ_CURRENT${_PC_RESET}"
+  echo ""
+  echo "  ${_PC_BOLD}Project${_PC_RESET}                            ${_PC_BOLD}Content${_PC_RESET}"
+  echo "  ${_PC_DIM}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PC_RESET}                            ${_PC_DIM}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PC_RESET}"
+  echo "  ${_PC_CYAN}info${_PC_RESET}   ${_PC_DIM}i${_PC_RESET}    ${_PC_DIM}Details${_PC_RESET}                ${_PC_CYAN}task${_PC_RESET}  ${_PC_DIM}t${_PC_RESET}  ${_PC_DIM}Manage tasks${_PC_RESET}"
+  echo "  ${_PC_CYAN}open${_PC_RESET}   ${_PC_DIM}o${_PC_RESET}    ${_PC_DIM}Links${_PC_RESET}                  ${_PC_CYAN}note${_PC_RESET}  ${_PC_DIM}n${_PC_RESET}  ${_PC_DIM}Notes${_PC_RESET}"
+  echo "  ${_PC_CYAN}path${_PC_RESET}   ${_PC_DIM}p${_PC_RESET}    ${_PC_DIM}Directory${_PC_RESET}              ${_PC_CYAN}color${_PC_RESET} ${_PC_DIM}c${_PC_RESET}  ${_PC_DIM}Tab color${_PC_RESET}"
+  echo "  ${_PC_CYAN}cd${_PC_RESET}          ${_PC_DIM}Jump to dir${_PC_RESET}"
+  echo ""
+  echo "  ${_PC_BOLD}Time${_PC_RESET}                               ${_PC_BOLD}AI${_PC_RESET}"
+  echo "  ${_PC_DIM}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PC_RESET}                               ${_PC_DIM}${_PU_H}${_PU_H}${_PC_RESET}"
+  echo "  ${_PC_CYAN}time start${_PC_RESET}  ${_PC_DIM}Timer on${_PC_RESET}              ${_PC_CYAN}claude${_PC_RESET}   ${_PC_DIM}cl${_PC_RESET}  ${_PC_DIM}Claude Code${_PC_RESET}"
+  echo "  ${_PC_CYAN}time stop${_PC_RESET}   ${_PC_DIM}Timer off${_PC_RESET}             ${_PC_CYAN}codex${_PC_RESET}    ${_PC_DIM}cx${_PC_RESET}  ${_PC_DIM}Codex${_PC_RESET}"
+  echo "  ${_PC_CYAN}time log${_PC_RESET}    ${_PC_DIM}History${_PC_RESET}               ${_PC_CYAN}sessions${_PC_RESET} ${_PC_DIM}ss${_PC_RESET}  ${_PC_DIM}Sessions${_PC_RESET}"
+  echo ""
+  echo "  ${_PC_DIM}proj help all ${_PU_ARROW} full reference  ${_PC_DIM}|${_PC_RESET}${_PC_DIM}  proj help <cmd> ${_PU_ARROW} per-command${_PC_RESET}"
+  echo ""
+}
+
+_proj_help_command() {
+  local cmd="$1"
+  case "$cmd" in
+    all)
+      _proj_help_full ;;
+    task|t)
+      echo ""
+      echo "  ${_PC_BOLD}proj task${_PC_RESET} ${_PC_DIM}(t)${_PC_RESET}"
+      echo ""
+      echo "  ${_PC_CYAN}task${_PC_RESET} ${_PC_WHITE}<text>${_PC_RESET}          ${_PC_DIM}Quick-add task${_PC_RESET}"
+      echo "  ${_PC_CYAN}task add${_PC_RESET} ${_PC_WHITE}<text>${_PC_RESET}      ${_PC_DIM}Add task${_PC_RESET}"
+      echo "  ${_PC_CYAN}task do${_PC_RESET} ${_PC_WHITE}<#>${_PC_RESET}          ${_PC_DIM}Mark as active (doing)${_PC_RESET}"
+      echo "  ${_PC_CYAN}task done${_PC_RESET} ${_PC_WHITE}<#>${_PC_RESET}        ${_PC_DIM}Mark as done${_PC_RESET}"
+      echo "  ${_PC_CYAN}task rm${_PC_RESET} ${_PC_WHITE}<#>${_PC_RESET}          ${_PC_DIM}Remove task${_PC_RESET}"
+      echo "  ${_PC_CYAN}task list${_PC_RESET}             ${_PC_DIM}Show all tasks${_PC_RESET}"
+      echo ""
+      ;;
+    note|n)
+      echo ""
+      echo "  ${_PC_BOLD}proj note${_PC_RESET} ${_PC_DIM}(n)${_PC_RESET}"
+      echo ""
+      echo "  ${_PC_CYAN}note${_PC_RESET} ${_PC_WHITE}<text>${_PC_RESET}          ${_PC_DIM}Add note${_PC_RESET}"
+      echo "  ${_PC_CYAN}note rm${_PC_RESET} ${_PC_WHITE}<#>${_PC_RESET}          ${_PC_DIM}Remove note${_PC_RESET}"
+      echo "  ${_PC_CYAN}note edit${_PC_RESET} ${_PC_WHITE}<#> <text>${_PC_RESET}  ${_PC_DIM}Edit note${_PC_RESET}"
+      echo "  ${_PC_CYAN}notes${_PC_RESET}                 ${_PC_DIM}Show all notes${_PC_RESET}"
+      echo ""
+      ;;
+    link)
+      echo ""
+      echo "  ${_PC_BOLD}proj link${_PC_RESET}"
+      echo ""
+      echo "  ${_PC_CYAN}link add${_PC_RESET}                       ${_PC_DIM}Interactive wizard${_PC_RESET}"
+      echo "  ${_PC_CYAN}link add${_PC_RESET} ${_PC_WHITE}<type>${_PC_RESET}               ${_PC_DIM}Add by type (prompts URL)${_PC_RESET}"
+      echo "  ${_PC_CYAN}link add${_PC_RESET} ${_PC_WHITE}<type> <url>${_PC_RESET}          ${_PC_DIM}Quick-add${_PC_RESET}"
+      echo "  ${_PC_CYAN}link rm${_PC_RESET} ${_PC_WHITE}<type>${_PC_RESET}                ${_PC_DIM}Remove link${_PC_RESET}"
+      echo ""
+      echo "  ${_PC_DIM}Types: $(_proj_link_type_list)${_PC_RESET}"
+      echo ""
+      ;;
+    time|ti)
+      echo ""
+      echo "  ${_PC_BOLD}proj time${_PC_RESET} ${_PC_DIM}(ti)${_PC_RESET}"
+      echo ""
+      echo "  ${_PC_CYAN}time start${_PC_RESET}            ${_PC_DIM}Start timer${_PC_RESET}"
+      echo "  ${_PC_CYAN}time stop${_PC_RESET}             ${_PC_DIM}Stop timer${_PC_RESET}"
+      echo "  ${_PC_CYAN}time log${_PC_RESET} ${_PC_DIM}[days]${_PC_RESET}        ${_PC_DIM}Time log (default 30d)${_PC_RESET}"
+      echo "  ${_PC_CYAN}time status${_PC_RESET}           ${_PC_DIM}Current timer${_PC_RESET}"
+      echo ""
+      ;;
+    open|o)
+      echo ""
+      echo "  ${_PC_BOLD}proj open${_PC_RESET} ${_PC_DIM}(o)${_PC_RESET}"
+      echo ""
+      echo "  ${_PC_CYAN}open${_PC_RESET}                  ${_PC_DIM}Link menu (fzf if available)${_PC_RESET}"
+      echo "  ${_PC_CYAN}open${_PC_RESET} ${_PC_WHITE}<#>${_PC_RESET}              ${_PC_DIM}Open by number${_PC_RESET}"
+      echo "  ${_PC_CYAN}open${_PC_RESET} ${_PC_WHITE}<type>${_PC_RESET}            ${_PC_DIM}Open by type${_PC_RESET}"
+      echo ""
+      ;;
+    *)
+      _proj_ui_warn "No help for: $cmd"
+      _proj_ui_hint "proj help all ${_PU_ARROW} full reference"
+      ;;
+  esac
+}
+
+_proj_help_full() {
   _proj_ui_banner
 
   echo "  ${_PC_BOLD}Quick Start${_PC_RESET}"
   echo "  ${_PC_DIM}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PC_RESET}"
-  echo "  ${_PC_CYAN}proj${_PC_RESET}                          Interactive menu"
-  echo "  ${_PC_CYAN}proj use${_PC_RESET} ${_PC_DIM}<name> [color]${_PC_RESET}      Activate project"
+  echo "  ${_PC_CYAN}proj${_PC_RESET}                              ${_PC_DIM}Interactive menu${_PC_RESET}"
+  echo "  ${_PC_CYAN}proj use${_PC_RESET} ${_PC_WHITE}<name>${_PC_RESET} ${_PC_DIM}[color]${_PC_RESET}         ${_PC_DIM}Activate project${_PC_RESET}"
+  echo "  ${_PC_CYAN}proj use${_PC_RESET} ${_PC_WHITE}<name>${_PC_RESET} ${_PC_DIM}-t <tpl>${_PC_RESET}       ${_PC_DIM}Create from template${_PC_RESET}"
   echo ""
 
   echo "  ${_PC_BOLD}Project${_PC_RESET}"
   echo "  ${_PC_DIM}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PC_RESET}"
-  echo "  ${_PC_CYAN}info${_PC_RESET}  ${_PC_DIM}i${_PC_RESET}                      Project details"
-  echo "  ${_PC_CYAN}path${_PC_RESET}  ${_PC_DIM}p${_PC_RESET}  ${_PC_DIM}[dir]${_PC_RESET}              Set/show local directory"
-  echo "  ${_PC_CYAN}cd${_PC_RESET}                            Jump to project directory"
-  echo "  ${_PC_CYAN}task${_PC_RESET}  ${_PC_DIM}t${_PC_RESET}  ${_PC_DIM}<text>${_PC_RESET}             Set current task"
-  echo "  ${_PC_CYAN}note${_PC_RESET}  ${_PC_DIM}n${_PC_RESET}  ${_PC_DIM}<text>${_PC_RESET}             Add note"
-  echo "  ${_PC_CYAN}color${_PC_RESET} ${_PC_DIM}c${_PC_RESET}  ${_PC_DIM}<color>${_PC_RESET}            Change tab color"
-  echo "  ${_PC_CYAN}list${_PC_RESET}  ${_PC_DIM}ls${_PC_RESET}                     List all projects"
-  echo "  ${_PC_CYAN}clear${_PC_RESET} ${_PC_DIM}x${_PC_RESET}                      Deactivate"
-  echo "  ${_PC_CYAN}rm${_PC_RESET}    ${_PC_DIM}<name>${_PC_RESET}                 Delete project"
+  echo "  ${_PC_CYAN}info${_PC_RESET}  ${_PC_DIM}i${_PC_RESET}                          ${_PC_DIM}Project details${_PC_RESET}"
+  echo "  ${_PC_CYAN}path${_PC_RESET}  ${_PC_DIM}p${_PC_RESET}  ${_PC_DIM}[dir]${_PC_RESET}                  ${_PC_DIM}Set/show directory${_PC_RESET}"
+  echo "  ${_PC_CYAN}cd${_PC_RESET}                                ${_PC_DIM}Jump to directory${_PC_RESET}"
+  echo "  ${_PC_CYAN}color${_PC_RESET} ${_PC_DIM}c${_PC_RESET}  ${_PC_DIM}<color>${_PC_RESET}                ${_PC_DIM}Change tab color${_PC_RESET}"
+  echo "  ${_PC_CYAN}list${_PC_RESET}  ${_PC_DIM}ls${_PC_RESET}                         ${_PC_DIM}All projects${_PC_RESET}"
+  echo "  ${_PC_CYAN}dash${_PC_RESET}  ${_PC_DIM}d${_PC_RESET}                          ${_PC_DIM}Cross-project dashboard${_PC_RESET}"
+  echo "  ${_PC_CYAN}clear${_PC_RESET} ${_PC_DIM}x${_PC_RESET}                          ${_PC_DIM}Deactivate${_PC_RESET}"
+  echo "  ${_PC_CYAN}rm${_PC_RESET}    ${_PC_DIM}<name>${_PC_RESET}                     ${_PC_DIM}Delete project${_PC_RESET}"
   echo ""
 
-  echo "  ${_PC_BOLD}Links & Deploy${_PC_RESET}"
-  echo "  ${_PC_DIM}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PC_RESET}"
-  echo "  ${_PC_CYAN}open${_PC_RESET}  ${_PC_DIM}o${_PC_RESET}  ${_PC_DIM}[#|type]${_PC_RESET}           Open link menu / by #"
-  echo "  ${_PC_CYAN}link add${_PC_RESET}                      Add a link"
-  echo "  ${_PC_CYAN}link rm${_PC_RESET} ${_PC_DIM}<type>${_PC_RESET}               Remove a link"
-  echo "  ${_PC_DIM}  Types: live staging dev clickup moco-kunde moco-auftrag${_PC_RESET}"
-  echo "  ${_PC_DIM}         gmail github server ssh cloudways${_PC_RESET}"
-  echo "  ${_PC_DIM}         facebook-ads google-ads analytics 1password${_PC_RESET}"
+  echo "  ${_PC_BOLD}Tasks & Notes${_PC_RESET}"
+  echo "  ${_PC_DIM}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PC_RESET}"
+  echo "  ${_PC_CYAN}task${_PC_RESET}  ${_PC_DIM}t${_PC_RESET}  ${_PC_DIM}<text>${_PC_RESET}                 ${_PC_DIM}Add task ${_PC_RESET}${_PC_DIM}(add/do/done/rm/list)${_PC_RESET}"
+  echo "  ${_PC_CYAN}note${_PC_RESET}  ${_PC_DIM}n${_PC_RESET}  ${_PC_DIM}<text>${_PC_RESET}                 ${_PC_DIM}Add note ${_PC_RESET}${_PC_DIM}(rm/edit)${_PC_RESET}"
+  echo "  ${_PC_CYAN}notes${_PC_RESET}                             ${_PC_DIM}Show notes${_PC_RESET}"
+  echo ""
+
+  echo "  ${_PC_BOLD}Links${_PC_RESET}"
+  echo "  ${_PC_DIM}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PC_RESET}"
+  echo "  ${_PC_CYAN}open${_PC_RESET}  ${_PC_DIM}o${_PC_RESET}  ${_PC_DIM}[#|type]${_PC_RESET}               ${_PC_DIM}Open link${_PC_RESET}"
+  echo "  ${_PC_CYAN}link add${_PC_RESET} ${_PC_DIM}[type] [url]${_PC_RESET}           ${_PC_DIM}Add link${_PC_RESET}"
+  echo "  ${_PC_CYAN}link rm${_PC_RESET} ${_PC_DIM}<type>${_PC_RESET}                  ${_PC_DIM}Remove link${_PC_RESET}"
   echo ""
 
   echo "  ${_PC_BOLD}Time${_PC_RESET}"
   echo "  ${_PC_DIM}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PC_RESET}"
-  echo "  ${_PC_CYAN}time start${_PC_RESET}  ${_PC_DIM}s${_PC_RESET}                Start timer"
-  echo "  ${_PC_CYAN}time stop${_PC_RESET}   ${_PC_DIM}x${_PC_RESET}                Stop timer"
-  echo "  ${_PC_CYAN}time log${_PC_RESET}    ${_PC_DIM}l [days]${_PC_RESET}          Time log (default 30d)"
-  echo "  ${_PC_CYAN}time status${_PC_RESET}                   Current timer"
+  echo "  ${_PC_CYAN}time start${_PC_RESET}                        ${_PC_DIM}Start timer${_PC_RESET}"
+  echo "  ${_PC_CYAN}time stop${_PC_RESET}                         ${_PC_DIM}Stop timer${_PC_RESET}"
+  echo "  ${_PC_CYAN}time log${_PC_RESET}  ${_PC_DIM}[days]${_PC_RESET}                  ${_PC_DIM}Time log${_PC_RESET}"
   echo ""
 
-  echo "  ${_PC_BOLD}AI${_PC_RESET}"
-  echo "  ${_PC_DIM}${_PU_H}${_PU_H}${_PC_RESET}"
-  echo "  ${_PC_CYAN}claude${_PC_RESET} ${_PC_DIM}cl${_PC_RESET}                    Start Claude Code"
-  echo "  ${_PC_CYAN}codex${_PC_RESET}  ${_PC_DIM}cx${_PC_RESET}                    Start Codex"
-  echo "  ${_PC_CYAN}sessions${_PC_RESET} ${_PC_DIM}ss${_PC_RESET}                  Claude sessions (via stars)"
+  echo "  ${_PC_BOLD}AI & Workflow${_PC_RESET}"
+  echo "  ${_PC_DIM}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PC_RESET}"
+  echo "  ${_PC_CYAN}claude${_PC_RESET}   ${_PC_DIM}cl${_PC_RESET}                      ${_PC_DIM}Claude Code${_PC_RESET}"
+  echo "  ${_PC_CYAN}codex${_PC_RESET}    ${_PC_DIM}cx${_PC_RESET}                      ${_PC_DIM}Codex${_PC_RESET}"
+  echo "  ${_PC_CYAN}sessions${_PC_RESET} ${_PC_DIM}ss${_PC_RESET}                      ${_PC_DIM}Claude sessions${_PC_RESET}"
+  echo "  ${_PC_CYAN}sync${_PC_RESET}     ${_PC_DIM}[moco|clickup]${_PC_RESET}            ${_PC_DIM}Sync${_PC_RESET}"
+  echo "  ${_PC_CYAN}deploy${_PC_RESET}                              ${_PC_DIM}Deploy${_PC_RESET}"
+  echo "  ${_PC_CYAN}report${_PC_RESET}   ${_PC_DIM}[--month|--client]${_PC_RESET}        ${_PC_DIM}Reports${_PC_RESET}"
   echo ""
 
-  echo "  ${_PC_BOLD}Workflow (stars)${_PC_RESET}"
-  echo "  ${_PC_DIM}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PC_RESET}"
-  echo "  ${_PC_CYAN}sync${_PC_RESET}    ${_PC_DIM}[moco|clickup]${_PC_RESET}        Sync to external systems"
-  echo "  ${_PC_CYAN}deploy${_PC_RESET}                          Deploy via pipeline"
-  echo "  ${_PC_CYAN}report${_PC_RESET}  ${_PC_DIM}[--month|--client]${_PC_RESET}    Generate reports"
+  echo "  ${_PC_BOLD}Templates${_PC_RESET}"
+  echo "  ${_PC_DIM}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PU_H}${_PC_RESET}"
+  echo "  ${_PC_CYAN}templates${_PC_RESET}                           ${_PC_DIM}List templates${_PC_RESET}"
+  echo "  ${_PC_DIM}Available: ${_PC_WHITE}webdev${_PC_RESET} ${_PC_WHITE}saas${_PC_RESET} ${_PC_WHITE}marketing${_PC_RESET} ${_PC_WHITE}freelance${_PC_RESET}"
   echo ""
 
   echo "  ${_PC_DIM}Colors: ${_PC_GREEN}green${_PC_RESET} ${_PC_BLUE}blue${_PC_RESET} ${_PC_CYAN}cyan${_PC_RESET} ${_PC_RED}red${_PC_RESET} ${_PC_ORANGE}orange${_PC_RESET} ${_PC_YELLOW}yellow${_PC_RESET} ${_PC_PURPLE}purple${_PC_RESET} ${_PC_PINK}pink${_PC_RESET} ${_PC_GRAY}gray${_PC_RESET}"
+  echo "  ${_PC_DIM}proj help <cmd> ${_PU_ARROW} per-command help (task, note, link, time, open)${_PC_RESET}"
   echo ""
 }
 
@@ -262,15 +385,17 @@ _proj_completion() {
     'info:Project details'
     'path:Set/show project directory'
     'cd:Jump to project directory'
-    'task:Set current task'
-    'note:Add note'
+    'task:Manage tasks (add/do/done/rm/list)'
+    'note:Notes (add/rm/edit)'
     'notes:Show notes'
     'notes-clear:Clear notes'
     'open:Open links'
-    'link:Manage links'
+    'link:Manage links (add/rm)'
     'time:Time tracking'
     'color:Change color'
     'list:List projects'
+    'dash:Cross-project dashboard'
+    'templates:List templates'
     'clear:Deactivate'
     'rm:Delete project'
     'claude:Start Claude Code'
@@ -306,18 +431,44 @@ _proj_completion() {
         timecmds=(start stop log status)
         _describe 'time command' timecmds
         ;;
+      task|t)
+        local -a taskcmds
+        taskcmds=(add do done rm list)
+        _describe 'task command' taskcmds
+        ;;
+      note|n)
+        local -a notecmds
+        notecmds=(rm edit)
+        _describe 'note command' notecmds
+        ;;
       link)
         local -a linkcmds
         linkcmds=(add rm)
         _describe 'link command' linkcmds
         ;;
       open|o)
-        # Complete with link types from current project
         if [[ -n "$_PROJ_CURRENT" ]]; then
           local file=$(_proj_file "$_PROJ_CURRENT")
           local -a link_keys
           link_keys=("${(@f)$(_proj_py "$file" list-keys links 2>/dev/null)}")
           _describe 'link' link_keys
+        fi
+        ;;
+      help|h)
+        local -a helptopics
+        helptopics=(all task note link time open)
+        _describe 'help topic' helptopics
+        ;;
+    esac
+  elif (( CURRENT == 4 )); then
+    case "${words[2]}" in
+      link)
+        if [[ "${words[3]}" == "add" ]]; then
+          local -a linktypes
+          for entry in "${_PROJ_LINK_TYPES[@]}"; do
+            linktypes+=("${entry%%:*}")
+          done
+          _describe 'link type' linktypes
         fi
         ;;
     esac

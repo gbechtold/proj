@@ -216,20 +216,20 @@ _proj_use() {
       local tpl_task="${rest%%|*}"
       local tpl_links="${rest#*|}"
       [[ -z "$color" ]] && color="$tpl_color"
-      _proj_py "$file" init "$name" "$color"
-      _proj_py "$file" task-add "$tpl_task"
-      _proj_py "$file" task-update 0 doing
+      _proj_py "$file" init "$name" "$color" >/dev/null
+      _proj_py "$file" task-add "$tpl_task" >/dev/null
+      _proj_py "$file" task-update 0 doing >/dev/null
       local -a link_arr
       link_arr=("${(@s:,:)tpl_links}")
       for lt in "${link_arr[@]}"; do
-        _proj_py "$file" set-nested links "$lt" ""
+        _proj_py "$file" set-nested links "$lt" "" >/dev/null
       done
       _proj_ui_success "New project ${_PC_WHITE}${_PC_BOLD}$name${_PC_RESET} ${_PC_DIM}(template: $template)${_PC_RESET}"
     else
       if [[ -n "$color" ]]; then
-        _proj_py "$file" init "$name" "$color"
+        _proj_py "$file" init "$name" "$color" >/dev/null
       else
-        _proj_py "$file" init "$name"
+        _proj_py "$file" init "$name" >/dev/null
       fi
       _proj_ui_success "New project ${_PC_WHITE}${_PC_BOLD}$name${_PC_RESET} created"
     fi
@@ -344,16 +344,17 @@ _proj_task_list() {
     return
   fi
 
-  while IFS='|' read -r idx text status created; do
-    local marker
-    case "$status" in
+  local marker num tc
+  while IFS='|' read -r idx text tstate created; do
+    case "$tstate" in
       todo)  marker="${_PC_DIM}[ ]${_PC_RESET}" ;;
       doing) marker="[${_PC_YELLOW}>${_PC_RESET}]" ;;
       done)  marker="[${_PC_GREEN}${_PU_CHECK}${_PC_RESET}]" ;;
+      *)     marker="${_PC_DIM}[ ]${_PC_RESET}" ;;
     esac
-    local num=$((idx + 1))
-    local tc="$_PC_WHITE"
-    [[ "$status" == "done" ]] && tc="$_PC_DIM"
+    num=$((idx + 1))
+    tc="$_PC_WHITE"
+    [[ "$tstate" == "done" ]] && tc="$_PC_DIM"
     printf "  ${_PC_DIM}%2d)${_PC_RESET} %b ${tc}%s${_PC_RESET}\n" "$num" "$marker" "$text"
   done <<< "$task_output"
 
@@ -365,7 +366,7 @@ _proj_task_add() {
   local text="$*"
   [[ -z "$text" ]] && _proj_ui_error "Usage: proj task <text>" && return 1
   local file=$(_proj_file "$_PROJ_CURRENT")
-  _proj_py "$file" task-add "$text"
+  _proj_py "$file" task-add "$text" >/dev/null
   _proj_ui_success "Task added: ${_PC_WHITE}$text${_PC_RESET}"
 }
 
@@ -373,7 +374,7 @@ _proj_task_done() {
   local num="$1"
   [[ -z "$num" || ! "$num" =~ ^[0-9]+$ ]] && _proj_ui_error "Usage: proj task done <#>" && return 1
   local file=$(_proj_file "$_PROJ_CURRENT")
-  _proj_py "$file" task-update $((num - 1)) done
+  _proj_py "$file" task-update $((num - 1)) done >/dev/null
   _proj_refresh
   _proj_ui_success "Task #$num done"
 }
@@ -382,7 +383,7 @@ _proj_task_doing() {
   local num="$1"
   [[ -z "$num" || ! "$num" =~ ^[0-9]+$ ]] && _proj_ui_error "Usage: proj task do <#>" && return 1
   local file=$(_proj_file "$_PROJ_CURRENT")
-  _proj_py "$file" task-update $((num - 1)) doing
+  _proj_py "$file" task-update $((num - 1)) doing >/dev/null
   _proj_refresh
   _proj_ui_success "Task #$num active"
 }
@@ -391,7 +392,7 @@ _proj_task_rm() {
   local num="$1"
   [[ -z "$num" || ! "$num" =~ ^[0-9]+$ ]] && _proj_ui_error "Usage: proj task rm <#>" && return 1
   local file=$(_proj_file "$_PROJ_CURRENT")
-  _proj_py "$file" task-rm $((num - 1))
+  _proj_py "$file" task-rm $((num - 1)) >/dev/null
   _proj_refresh
   _proj_ui_success "Task #$num removed"
 }
@@ -413,7 +414,7 @@ _proj_note() {
   [[ -z "$note_text" ]] && _proj_notes && return
 
   local file=$(_proj_file "$_PROJ_CURRENT")
-  _proj_py "$file" append-note "$note_text"
+  _proj_py "$file" append-note "$note_text" >/dev/null
   _proj_ui_success "Note added"
 }
 
@@ -422,7 +423,7 @@ _proj_note_rm() {
   [[ -z "$_PROJ_CURRENT" ]] && _proj_ui_error "No active project." && return 1
   [[ -z "$idx" ]] && _proj_ui_error "Usage: proj note rm <#>" && return 1
   local file=$(_proj_file "$_PROJ_CURRENT")
-  _proj_py "$file" pop-list notes $(( idx - 1 ))
+  _proj_py "$file" pop-list notes $(( idx - 1 )) >/dev/null
   _proj_ui_success "Note #$idx removed"
 }
 
@@ -433,7 +434,7 @@ _proj_note_edit() {
   [[ -z "$_PROJ_CURRENT" ]] && _proj_ui_error "No active project." && return 1
   [[ -z "$idx" || -z "$new_text" ]] && _proj_ui_error "Usage: proj note edit <#> <text>" && return 1
   local file=$(_proj_file "$_PROJ_CURRENT")
-  _proj_py "$file" set-list notes $(( idx - 1 )) "$new_text"
+  _proj_py "$file" set-list notes $(( idx - 1 )) "$new_text" >/dev/null
   _proj_ui_success "Note #$idx updated"
 }
 

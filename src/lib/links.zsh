@@ -43,7 +43,7 @@ _proj_open() {
     _proj_ui_header "Links: $_PROJ_CURRENT" "$_PC_ORANGE"
     echo "  ${_PC_DIM}No links yet${_PC_RESET}"
     echo ""
-    echo "  ${_PC_BOLD}[+]${_PC_RESET} Add link  ${_PC_DIM}|${_PC_RESET}  ${_PC_BOLD}[q]${_PC_RESET} Back"
+    echo "  ${_PC_DIM}[+] Add link  |  [q] Back${_PC_RESET}"
     echo ""
     read "choice?  ${_PC_CYAN}>${_PC_RESET} "
     [[ "$choice" == "+" || "$choice" == "a" ]] && _proj_link_add
@@ -81,12 +81,12 @@ _proj_open() {
     local url=$(_proj_json_get "$file" links "$key")
     local icon=$(_proj_ui_link_icon "$key")
     local label=$(_proj_ui_link_label "$key")
-    printf "  ${_PC_BOLD}%2d)${_PC_RESET} %s %-14s ${_PC_DIM}%s${_PC_RESET}\n" "$idx" "$icon" "$label" "$url"
+    printf "  ${_PC_DIM}%2d) %s %-14s${_PC_RESET} ${_PC_WHITE}%s${_PC_RESET}\n" "$idx" "$icon" "$label" "$url"
   done
 
   echo ""
   _proj_ui_separator
-  echo "  ${_PC_BOLD}[#]${_PC_RESET} Open  ${_PC_DIM}|${_PC_RESET}  ${_PC_BOLD}[+]${_PC_RESET} Add  ${_PC_DIM}|${_PC_RESET}  ${_PC_BOLD}[-]${_PC_RESET} Remove  ${_PC_DIM}|${_PC_RESET}  ${_PC_BOLD}[q]${_PC_RESET} Back"
+  echo "  ${_PC_DIM}[#] Open  |  [+] Add  |  [-] Remove  |  [q] Back${_PC_RESET}"
   echo ""
 
   read "choice?  ${_PC_CYAN}>${_PC_RESET} "
@@ -220,6 +220,6 @@ _proj_open_url() {
     return
   fi
 
-  _proj_ui_info "Opening: ${_PC_DIM}$url${_PC_RESET}"
+  _proj_ui_info "Opening: ${_PC_WHITE}$url${_PC_RESET}"
   open "$url" 2>/dev/null
 }

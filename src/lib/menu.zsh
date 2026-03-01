@@ -1,6 +1,20 @@
 # proj/lib/menu.zsh — Interactive menus
 # Part of proj · Project Hub in your Terminal
 
+# ─── Search Projects (substring, case-insensitive) ───────────
+
+_proj_search_projects() {
+  local query="${1:l}"  # lowercase
+  local -a matches
+  for f in "$PROJ_DIR"/*.json(N); do
+    local pname=$(_proj_json_get "$f" name)
+    if [[ "${pname:l}" == *"$query"* ]]; then
+      matches+=("$f|$pname")
+    fi
+  done
+  printf '%s\n' "${matches[@]}"
+}
+
 # ─── Main Project Menu ───────────────────────────────────────
 
 _proj_menu() {
@@ -14,7 +28,7 @@ _proj_menu() {
     _proj_ui_banner
     echo "  ${_PC_DIM}No projects yet. Let's create one!${_PC_RESET}"
     echo ""
-    echo "  ${_PC_BOLD}[+]${_PC_RESET} New project  ${_PC_DIM}|${_PC_RESET}  ${_PC_BOLD}[d]${_PC_RESET} Load demos  ${_PC_DIM}|${_PC_RESET}  ${_PC_BOLD}[q]${_PC_RESET} Quit"
+    echo "  ${_PC_DIM}[+] New project  |  [d] Load demos  |  [q] Quit${_PC_RESET}"
     echo ""
     read "choice?  ${_PC_CYAN}>${_PC_RESET} "
 
@@ -55,9 +69,9 @@ _proj_menu() {
 
   # Navigation line
   local nav=""
-  (( page > 1 )) && nav="${_PC_BOLD}[p]${_PC_RESET} Prev  "
-  (( page < total_pages )) && nav="${nav}${_PC_BOLD}[w]${_PC_RESET} Next  "
-  echo "  ${nav}${_PC_BOLD}[+]${_PC_RESET} New  ${_PC_DIM}|${_PC_RESET}  ${_PC_BOLD}[q]${_PC_RESET} Quit"
+  (( page > 1 )) && nav="[p] Prev  "
+  (( page < total_pages )) && nav="${nav}[w] Next  "
+  echo "  ${_PC_DIM}${nav}[+] New  |  [q] Quit${_PC_RESET}"
   echo ""
 
   read "choice?  ${_PC_CYAN}>${_PC_RESET} "
@@ -84,8 +98,42 @@ _proj_menu() {
           _proj_ui_error "Invalid selection"
         fi
       else
-        # Treat as project name — quick create/activate
-        _proj_use "$choice"
+        # Smart match: search existing projects
+        local -a results
+        results=("${(@f)$(_proj_search_projects "$choice")}")
+        results=(${results:#})  # filter empty
+
+        if (( ${#results} == 1 )); then
+          # Exact one match → activate
+          local match_name="${results[1]#*|}"
+          _proj_ui_info "Match: ${_PC_WHITE}${_PC_BOLD}${match_name}${_PC_RESET}"
+          _proj_use "$match_name"
+        elif (( ${#results} > 1 )); then
+          # Multiple matches → show selection
+          echo ""
+          _proj_ui_subheader "Matches for \"$choice\""
+          echo ""
+          local midx=0
+          for entry in "${results[@]}"; do
+            midx=$((midx + 1))
+            local mname="${entry#*|}"
+            echo "  ${_PC_DIM}${midx})${_PC_RESET} ${_PC_WHITE}${_PC_BOLD}${mname}${_PC_RESET}"
+          done
+          echo ""
+          read "msel?  ${_PC_CYAN}>${_PC_RESET} "
+          if [[ "$msel" =~ ^[0-9]+$ ]] && (( msel >= 1 && msel <= ${#results} )); then
+            local sel_name="${results[$msel]#*|}"
+            _proj_use "$sel_name"
+          fi
+        else
+          # No match → ask before creating
+          echo ""
+          _proj_ui_warn "No project matching \"${_PC_WHITE}${choice}${_PC_RESET}${_PC_YELLOW}\"."
+          read "yn?  Create it? ${_PC_DIM}[y/N]${_PC_RESET} "
+          if [[ "$yn" == [yY] ]]; then
+            _proj_new_interactive_with_name "$choice"
+          fi
+        fi
       fi
       ;;
   esac
@@ -101,6 +149,11 @@ _proj_new_interactive() {
   read "name?  ${_PC_CYAN}Name:${_PC_RESET} "
   [[ -z "$name" ]] && _proj_ui_warn "Cancelled" && return
 
+  _proj_new_interactive_with_name "$name"
+}
+
+_proj_new_interactive_with_name() {
+  local name="$1"
   echo "  ${_PC_DIM}Colors: ${_PC_GREEN}green${_PC_RESET} ${_PC_BLUE}blue${_PC_RESET} ${_PC_CYAN}cyan${_PC_RESET} ${_PC_RED}red${_PC_RESET} ${_PC_ORANGE}orange${_PC_RESET} ${_PC_YELLOW}yellow${_PC_RESET} ${_PC_PURPLE}purple${_PC_RESET} ${_PC_PINK}pink${_PC_RESET} ${_PC_GRAY}gray${_PC_RESET}"
   read "color?  ${_PC_CYAN}Color ${_PC_DIM}[enter=cyan]:${_PC_RESET} "
   [[ -z "$color" ]] && color="cyan"

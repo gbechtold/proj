@@ -25,12 +25,12 @@ _proj_time_start() {
     started:*)
       local ts="${result#started:}"
       echo ""
-      echo "  ${_PC_GREEN}${_PU_PLAY}${_PC_RESET}  Timer started: ${_PC_BOLD}${ts#*T}${_PC_RESET} ${_PC_DIM}${_PU_DOT} ${_PROJ_CURRENT}${_PC_RESET}"
+      echo "  ${_PC_GREEN}${_PU_PLAY}${_PC_RESET}  Timer started: ${_PC_WHITE}${_PC_BOLD}${ts#*T}${_PC_RESET} ${_PC_DIM}${_PU_DOT} ${_PROJ_CURRENT}${_PC_RESET}"
       _proj_ui_hint "proj time stop ${_PU_ARROW} stop timer  ${_PC_DIM}|${_PC_RESET}${_PC_DIM}  proj time log ${_PU_ARROW} view log"
       ;;
     running:*)
       local ts="${result#running:}"
-      _proj_ui_warn "Timer already running since ${_PC_BOLD}${ts#*T}${_PC_RESET}"
+      _proj_ui_warn "Timer already running since ${_PC_WHITE}${_PC_BOLD}${ts#*T}${_PC_RESET}"
       _proj_ui_hint "proj time stop ${_PU_ARROW} stop first"
       ;;
   esac
@@ -61,7 +61,7 @@ print(segs[-1])
 ")
       echo ""
       echo "  ${_PC_RED}${_PU_STOP}${_PC_RESET}  Timer stopped ${_PC_DIM}${_PU_DOT} ${_PROJ_CURRENT}${_PC_RESET}"
-      echo "  ${_PC_DIM}   Duration:${_PC_RESET} ${_PC_BOLD}${duration}${_PC_RESET}"
+      echo "  ${_PC_DIM}   Duration:${_PC_RESET} ${_PC_WHITE}${_PC_BOLD}${duration}${_PC_RESET}"
       _proj_ui_hint "proj time log ${_PU_ARROW} view log  ${_PC_DIM}|${_PC_RESET}${_PC_DIM}  proj time start ${_PU_ARROW} restart"
       ;;
     no_timer)
@@ -86,8 +86,8 @@ _proj_time_status() {
       local elapsed="${info##*:}"
       echo ""
       echo "  ${_PC_RED}${_PU_TIMER}${_PC_RESET}  ${_PC_BOLD}Timer running${_PC_RESET} ${_PC_DIM}${_PU_DOT} ${_PROJ_CURRENT}${_PC_RESET}"
-      echo "  ${_PC_DIM}   Started:${_PC_RESET}  ${started#*T}"
-      echo "  ${_PC_DIM}   Elapsed:${_PC_RESET}  ${_PC_BOLD}${elapsed}${_PC_RESET}"
+      echo "  ${_PC_DIM}   Started:${_PC_RESET}  ${_PC_WHITE}${started#*T}${_PC_RESET}"
+      echo "  ${_PC_DIM}   Elapsed:${_PC_RESET}  ${_PC_WHITE}${_PC_BOLD}${elapsed}${_PC_RESET}"
       ;;
     idle)
       echo "  ${_PC_DIM}${_PU_CLOCK} No timer running for ${_PROJ_CURRENT}${_PC_RESET}"

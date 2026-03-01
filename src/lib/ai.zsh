@@ -61,9 +61,9 @@ _proj_ai_claude() {
 
   echo ""
   _proj_ui_header "Claude Code: $name" "$_PC_PURPLE"
-  echo "  ${_PC_DIM}Path:${_PC_RESET}    $proj_path"
-  echo "  ${_PC_DIM}Context:${_PC_RESET} .proj-context.json written"
-  [[ -n "$task" ]] && echo "  ${_PC_DIM}Task:${_PC_RESET}    $task"
+  echo "  ${_PC_DIM}Path:${_PC_RESET}    ${_PC_WHITE}$proj_path${_PC_RESET}"
+  echo "  ${_PC_DIM}Context:${_PC_RESET} ${_PC_WHITE}.proj-context.json written${_PC_RESET}"
+  [[ -n "$task" ]] && echo "  ${_PC_DIM}Task:${_PC_RESET}    ${_PC_WHITE}$task${_PC_RESET}"
   echo ""
 
   local open_mode="${1:-ask}"
@@ -74,9 +74,9 @@ _proj_ai_claude() {
     (cd "$proj_path" && claude --prompt "$prompt")
   else
     # Ask what to do
-    echo "  ${_PC_BOLD}[1]${_PC_RESET} Open in new iTerm2 tab"
-    echo "  ${_PC_BOLD}[2]${_PC_RESET} Start here"
-    echo "  ${_PC_BOLD}[q]${_PC_RESET} Cancel"
+    echo "  ${_PC_DIM}[1]${_PC_RESET} Open in new iTerm2 tab"
+    echo "  ${_PC_DIM}[2]${_PC_RESET} Start here"
+    echo "  ${_PC_DIM}[q]${_PC_RESET} Cancel"
     echo ""
     read "choice?  ${_PC_CYAN}>${_PC_RESET} "
 
@@ -125,12 +125,12 @@ _proj_ai_codex() {
 
   echo ""
   _proj_ui_header "Codex: $name" "$_PC_ORANGE"
-  echo "  ${_PC_DIM}Path:${_PC_RESET}    $proj_path"
-  echo "  ${_PC_DIM}Context:${_PC_RESET} .proj-context.json written"
+  echo "  ${_PC_DIM}Path:${_PC_RESET}    ${_PC_WHITE}$proj_path${_PC_RESET}"
+  echo "  ${_PC_DIM}Context:${_PC_RESET} ${_PC_WHITE}.proj-context.json written${_PC_RESET}"
   echo ""
-  echo "  ${_PC_BOLD}[1]${_PC_RESET} Open in new iTerm2 tab"
-  echo "  ${_PC_BOLD}[2]${_PC_RESET} Start here"
-  echo "  ${_PC_BOLD}[q]${_PC_RESET} Cancel"
+  echo "  ${_PC_DIM}[1]${_PC_RESET} Open in new iTerm2 tab"
+  echo "  ${_PC_DIM}[2]${_PC_RESET} Start here"
+  echo "  ${_PC_DIM}[q]${_PC_RESET} Cancel"
   echo ""
   read "choice?  ${_PC_CYAN}>${_PC_RESET} "
 

@@ -18,6 +18,20 @@ PROJ_COLORS=(
   gray    "120 120 120"
 )
 
+# Dark background variants (~10% brightness)
+typeset -gA PROJ_COLORS_BG
+PROJ_COLORS_BG=(
+  green   "8 25 12"
+  blue    "10 15 30"
+  cyan    "5 20 20"
+  red     "28 10 10"
+  orange  "25 18 8"
+  yellow  "25 22 8"
+  purple  "18 10 28"
+  pink    "25 12 18"
+  gray    "18 18 18"
+)
+
 # Current session state
 typeset -g _PROJ_CURRENT=""
 
@@ -67,6 +81,16 @@ _proj_iterm_badge() {
   printf "\033]1337;SetBadgeFormat=%s\a" "$encoded"
 }
 
+_proj_iterm_bg_color() {
+  local r g b
+  read r g b <<< "$1"
+  printf "\033]1337;SetColors=bg=%02x%02x%02x\a" "$r" "$g" "$b"
+}
+
+_proj_iterm_reset_bg() {
+  printf "\033]1337;SetColors=bg=000000\a"
+}
+
 # ─── Refresh iTerm2 State ───────────────────────────────────
 
 _proj_refresh() {
@@ -79,9 +103,14 @@ _proj_refresh() {
   local task=$(_proj_json_get "$file" task)
   local name=$(_proj_json_get "$file" name)
 
-  # Set color
+  # Set tab color
   if [[ -n "$color" && -n "${PROJ_COLORS[$color]}" ]]; then
     _proj_iterm_color "${PROJ_COLORS[$color]}"
+  fi
+
+  # Set background color (dark variant)
+  if [[ -n "$color" && -n "${PROJ_COLORS_BG[$color]}" ]]; then
+    _proj_iterm_bg_color "${PROJ_COLORS_BG[$color]}"
   fi
 
   # Build title
@@ -122,9 +151,9 @@ _proj_use() {
   # Show path if set
   local proj_path=$(_proj_json_get "$file" path)
   if [[ -n "$proj_path" ]]; then
-    _proj_ui_info "Active: ${_PC_BOLD}$name${_PC_RESET} ${_PC_DIM}${_PU_DOT} $proj_path${_PC_RESET}"
+    _proj_ui_info "Active: ${_PC_WHITE}${_PC_BOLD}$name${_PC_RESET} ${_PC_DIM}${_PU_DOT} $proj_path${_PC_RESET}"
   else
-    _proj_ui_info "Active: ${_PC_BOLD}$name${_PC_RESET}"
+    _proj_ui_info "Active: ${_PC_WHITE}${_PC_BOLD}$name${_PC_RESET}"
   fi
   _proj_ui_hint "proj cd ${_PU_ARROW} dir  ${_PC_DIM}|${_PC_RESET}${_PC_DIM}  proj open ${_PU_ARROW} links  ${_PC_DIM}|${_PC_RESET}${_PC_DIM}  proj time start ${_PU_ARROW} timer"
 }
@@ -272,14 +301,14 @@ _proj_info() {
 
   local proj_path=$(_proj_json_get "$file" path)
 
-  echo "  ${_PC_DIM}Color:${_PC_RESET}    $color"
-  [[ -n "$proj_path" ]] && echo "  ${_PC_DIM}Path:${_PC_RESET}     ${_PC_BOLD}$proj_path${_PC_RESET}"
-  echo "  ${_PC_DIM}Task:${_PC_RESET}     ${task:-—}"
-  echo "  ${_PC_DIM}Notes:${_PC_RESET}    $note_count"
-  echo "  ${_PC_DIM}Links:${_PC_RESET}    $link_count"
-  echo "  ${_PC_DIM}Time:${_PC_RESET}     $time_count entries"
-  echo "  ${_PC_DIM}Created:${_PC_RESET}  ${created%T*}"
-  echo "  ${_PC_DIM}Updated:${_PC_RESET}  ${updated%T*}"
+  echo "  ${_PC_DIM}Color:${_PC_RESET}    ${_PC_WHITE}$color${_PC_RESET}"
+  [[ -n "$proj_path" ]] && echo "  ${_PC_DIM}Path:${_PC_RESET}     ${_PC_WHITE}${_PC_BOLD}$proj_path${_PC_RESET}"
+  echo "  ${_PC_DIM}Task:${_PC_RESET}     ${_PC_WHITE}${task:-—}${_PC_RESET}"
+  echo "  ${_PC_DIM}Notes:${_PC_RESET}    ${_PC_WHITE}$note_count${_PC_RESET}"
+  echo "  ${_PC_DIM}Links:${_PC_RESET}    ${_PC_WHITE}$link_count${_PC_RESET}"
+  echo "  ${_PC_DIM}Time:${_PC_RESET}     ${_PC_WHITE}$time_count entries${_PC_RESET}"
+  echo "  ${_PC_DIM}Created:${_PC_RESET}  ${_PC_WHITE}${created%T*}${_PC_RESET}"
+  echo "  ${_PC_DIM}Updated:${_PC_RESET}  ${_PC_WHITE}${updated%T*}${_PC_RESET}"
 
   if [[ "$timer_status" == running:* ]]; then
     local elapsed="${timer_status##*:}"
@@ -325,6 +354,7 @@ _proj_list() {
 _proj_clear() {
   _PROJ_CURRENT=""
   _proj_iterm_clear_color
+  _proj_iterm_reset_bg
   _proj_iterm_title ""
   _proj_iterm_badge ""
   _proj_ui_success "Tab reset"

@@ -56,13 +56,13 @@ typeset -g _PU_HDbl='═'
 
 _proj_ui_header() {
   local text="$1"
-  local color="${2:-$_PC_CYAN}"
+  local color="${2:-$_PC_DIM}"
   local width=45
   local pad=$(( (width - ${#text} - 2) / 2 ))
   local lpad=$(printf '%*s' "$pad" '' | tr ' ' "$_PU_HDbl")
   local rpad=$(printf '%*s' "$(( width - ${#text} - 2 - pad ))" '' | tr ' ' "$_PU_HDbl")
   echo ""
-  echo "${color}${lpad} ${_PC_BOLD}${text}${_PC_RESET}${color} ${rpad}${_PC_RESET}"
+  echo "${_PC_DIM}${lpad}${_PC_RESET} ${_PC_WHITE}${_PC_BOLD}${text}${_PC_RESET} ${_PC_DIM}${rpad}${_PC_RESET}"
   echo ""
 }
 
@@ -129,9 +129,9 @@ _proj_ui_project_line() {
   [[ -n "$timer" ]] && marker="${marker} ${_PC_RED}${_PU_TIMER}${_PC_RESET}"
 
   local task_display=""
-  [[ -n "$task" ]] && task_display=" ${_PC_DIM}${_PU_DOT}${_PC_RESET} ${task}"
+  [[ -n "$task" ]] && task_display=" ${_PC_DIM}${_PU_DOT} ${task}${_PC_RESET}"
 
-  printf "  ${_PC_BOLD}%2s)${_PC_RESET} ${cc}%-18s${_PC_RESET}${task_display}${marker}\n" "$num" "$name"
+  printf "  ${_PC_DIM}%2s)${_PC_RESET} ${_PC_WHITE}${_PC_BOLD}%-18s${_PC_RESET}${task_display}${marker}\n" "$num" "$name"
 }
 
 # Banner — shown on first use or proj --version

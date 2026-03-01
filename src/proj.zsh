@@ -258,10 +258,13 @@ _proj_create_demos() {
   # Cosmic Carrot Studios — web agency with full deploy setup
   local f=$(_proj_file "Cosmic Carrot")
   _proj_py "$f" init "Cosmic Carrot" "orange"
-  _proj_py "$f" set task "Landing page redesign"
   _proj_py "$f" set path "~/Projects/CosmicCarrot"
-  _proj_py "$f" append notes '"Check responsive breakpoints"'
-  _proj_py "$f" append notes '"Client wants parallax hero section"'
+  _proj_py "$f" task-add "Landing page redesign"
+  _proj_py "$f" task-update 0 doing
+  _proj_py "$f" task-add "Setup CI/CD pipeline"
+  _proj_py "$f" task-add "SEO audit"
+  _proj_py "$f" append-note "Check responsive breakpoints"
+  _proj_py "$f" append-note "Client wants parallax hero section"
   _proj_py "$f" set-nested links live "https://cosmiccarrot.example.com"
   _proj_py "$f" set-nested links staging "https://staging.cosmiccarrot.example.com"
   _proj_py "$f" set-nested links cloudways "https://platform.cloudways.com/server/12345/access_detail"
@@ -272,14 +275,16 @@ _proj_create_demos() {
   _proj_py "$f" set-nested links gmail "Cosmic Carrot"
   _proj_py "$f" set-nested links github "https://github.com/demo/cosmic-carrot"
   _proj_py "$f" set-nested links 1password "https://my.1password.com/vaults/abc/items/cosmic-carrot"
-  echo "  ${_PC_ORANGE}${_PU_BULLET}${_PC_RESET} Cosmic Carrot ${_PC_DIM}— web agency + deploy${_PC_RESET}"
+  echo "  ${_PC_ORANGE}${_PU_BULLET}${_PC_RESET} Cosmic Carrot ${_PC_DIM}— web agency + deploy (3 tasks)${_PC_RESET}"
 
   # Turbo Turtle Racing — e-commerce with marketing
   f=$(_proj_file "Turbo Turtle")
   _proj_py "$f" init "Turbo Turtle" "green"
-  _proj_py "$f" set task "Checkout flow optimization"
   _proj_py "$f" set path "~/Projects/TurboTurtle"
-  _proj_py "$f" append notes '"A/B test: one-page vs multi-step checkout"'
+  _proj_py "$f" task-add "Checkout flow optimization"
+  _proj_py "$f" task-update 0 doing
+  _proj_py "$f" task-add "A/B test one-page vs multi-step"
+  _proj_py "$f" append-note "A/B test: one-page vs multi-step checkout"
   _proj_py "$f" set-nested links live "https://turboturtleracing.example.com"
   _proj_py "$f" set-nested links staging "https://staging.turboturtleracing.example.com"
   _proj_py "$f" set-nested links server "https://console.aws.example.com/ec2/i-turboturtle"
@@ -288,40 +293,48 @@ _proj_create_demos() {
   _proj_py "$f" set-nested links analytics "https://analytics.google.com/analytics/web/#/p99999/reports"
   _proj_py "$f" set-nested links moco-kunde "https://mocoapp.example.com/contacts/42"
   _proj_py "$f" set-nested links moco-auftrag "https://mocoapp.example.com/projects/101"
-  echo "  ${_PC_GREEN}${_PU_BULLET}${_PC_RESET} Turbo Turtle ${_PC_DIM}— e-commerce + marketing${_PC_RESET}"
+  echo "  ${_PC_GREEN}${_PU_BULLET}${_PC_RESET} Turbo Turtle ${_PC_DIM}— e-commerce + marketing (2 tasks)${_PC_RESET}"
 
   # Pixel Penguin Labs — SaaS with AI
   f=$(_proj_file "Pixel Penguin")
   _proj_py "$f" init "Pixel Penguin" "blue"
-  _proj_py "$f" set task "API rate limiting"
   _proj_py "$f" set path "~/Projects/PixelPenguin"
-  _proj_py "$f" append notes '"Redis-based token bucket"'
-  _proj_py "$f" append notes '"Dashboard needs usage graphs"'
+  _proj_py "$f" task-add "API rate limiting"
+  _proj_py "$f" task-update 0 doing
+  _proj_py "$f" task-add "Dashboard usage graphs"
+  _proj_py "$f" task-add "Write API docs"
+  _proj_py "$f" append-note "Redis-based token bucket"
+  _proj_py "$f" append-note "Dashboard needs usage graphs"
   _proj_py "$f" set-nested links live "https://pixelpenguin.example.com"
   _proj_py "$f" set-nested links dev "http://localhost:3000"
   _proj_py "$f" set-nested links github "https://github.com/demo/pixel-penguin"
   _proj_py "$f" set-nested links claude "~/Projects/PixelPenguin"
   _proj_py "$f" set-nested links ssh "ssh deploy@pixelpenguin.example.com"
-  echo "  ${_PC_BLUE}${_PU_BULLET}${_PC_RESET} Pixel Penguin ${_PC_DIM}— SaaS + AI${_PC_RESET}"
+  echo "  ${_PC_BLUE}${_PU_BULLET}${_PC_RESET} Pixel Penguin ${_PC_DIM}— SaaS + AI (3 tasks)${_PC_RESET}"
 
   # Neon Narwhal Design — design with marketing
   f=$(_proj_file "Neon Narwhal")
   _proj_py "$f" init "Neon Narwhal" "purple"
-  _proj_py "$f" set task "Brand guidelines PDF"
   _proj_py "$f" set path "~/Projects/NeonNarwhal"
-  _proj_py "$f" append notes '"Needs dark mode variants"'
+  _proj_py "$f" task-add "Brand guidelines PDF"
+  _proj_py "$f" task-update 0 doing
+  _proj_py "$f" task-add "Dark mode variants"
+  _proj_py "$f" append-note "Needs dark mode variants"
   _proj_py "$f" set-nested links clickup "https://app.clickup.com/demo/neon-narwhal"
   _proj_py "$f" set-nested links gmail "Neon Narwhal Design"
   _proj_py "$f" set-nested links facebook-ads "https://business.facebook.com/adsmanager/manage/campaigns?act=55555"
-  echo "  ${_PC_PURPLE}${_PU_BULLET}${_PC_RESET} Neon Narwhal ${_PC_DIM}— design + marketing${_PC_RESET}"
+  echo "  ${_PC_PURPLE}${_PU_BULLET}${_PC_RESET} Neon Narwhal ${_PC_DIM}— design + marketing (2 tasks)${_PC_RESET}"
 
   # Thunderbolt Taco — food delivery with full deploy
   f=$(_proj_file "Thunderbolt Taco")
   _proj_py "$f" init "Thunderbolt Taco" "red"
-  _proj_py "$f" set task "Push notifications"
   _proj_py "$f" set path "~/Projects/ThunderboltTaco"
-  _proj_py "$f" append notes '"Firebase Cloud Messaging setup"'
-  _proj_py "$f" append notes '"iOS permission flow needs UX review"'
+  _proj_py "$f" task-add "Push notifications"
+  _proj_py "$f" task-update 0 doing
+  _proj_py "$f" task-add "iOS permission flow UX"
+  _proj_py "$f" task-add "Android deep links"
+  _proj_py "$f" append-note "Firebase Cloud Messaging setup"
+  _proj_py "$f" append-note "iOS permission flow needs UX review"
   _proj_py "$f" set-nested links live "https://thunderbolttaco.example.com"
   _proj_py "$f" set-nested links staging "https://staging.thunderbolttaco.example.com"
   _proj_py "$f" set-nested links dev "http://localhost:8080"
@@ -330,7 +343,7 @@ _proj_create_demos() {
   _proj_py "$f" set-nested links moco-kunde "https://mocoapp.example.com/contacts/77"
   _proj_py "$f" set-nested links codex "~/Projects/ThunderboltTaco"
   _proj_py "$f" set-nested links 1password "https://my.1password.com/vaults/abc/items/thunderbolt-taco"
-  echo "  ${_PC_RED}${_PU_BULLET}${_PC_RESET} Thunderbolt Taco ${_PC_DIM}— delivery + deploy${_PC_RESET}"
+  echo "  ${_PC_RED}${_PU_BULLET}${_PC_RESET} Thunderbolt Taco ${_PC_DIM}— delivery + deploy (3 tasks)${_PC_RESET}"
 
   echo ""
   _proj_ui_success "5 demo projects created"
